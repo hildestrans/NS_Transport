@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="de" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f5a623">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="N&amp;S Zeit">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>N&S Transport – Zeiterfassung</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #151821;
+    --card: #1c2030;
+    --border: #272d3d;
+    --accent: #f5a623;
+    --accent2: #e8703a;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --blue: #3498db;
+    --text: #e8ecf4;
+    --muted: #6b7490;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #1a1f2e 0%, #0d1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .clock-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .clock-display .time {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tab-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 13px 8px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .tab-btn .tab-icon { font-size: 18px; }
+
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ── MAIN CONTENT ── */
+  main { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* ── CHECKIN PAGE ── */
+  .employee-select-wrap {
+    position: relative;
+  }
+
+  .employee-select-wrap select,
+  .form-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    padding: 12px 14px;
+    appearance: none;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .employee-select-wrap select:focus,
+  .form-input:focus {
+    border-color: var(--accent);
+  }
+
+  .select-arrow {
+    position: absolute;
+    right: 14px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+    font-size: 12px;
+  }
+
+  .form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: block;
+    letter-spacing: 0.5px;
+  }
+
+  .form-group { margin-bottom: 14px; }
+
+  /* ── STATUS BADGE ── */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .status-badge.in { background: rgba(46,204,113,0.15); color: var(--green); }
+  .status-badge.out { background: rgba(107,116,144,0.15); color: var(--muted); }
+  .status-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .status-badge.in .dot { animation: pulse 1.5s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── BIG BUTTONS ── */
+  .btn-checkin, .btn-checkout {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Outfit', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-checkin {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+  }
+
+  .btn-checkout {
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+    color: white;
+  }
+
+  .btn-checkin:active, .btn-checkout:active {
+    transform: scale(0.97);
+  }
+
+  .btn-checkin:disabled, .btn-checkout:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ── TODAY LOG ── */
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-item:last-child { border-bottom: none; }
+
+  .log-avatar {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .log-name { font-size: 14px; font-weight: 600; }
+  .log-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .log-duration {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  /* ── EMPLOYEE MANAGEMENT ── */
+  .emp-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .emp-item:last-child { border-bottom: none; }
+
+  .emp-avatar {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #3a7bd5, #3a9bdc);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .emp-name { font-size: 14px; font-weight: 600; }
+  .emp-role { font-size: 11px; color: var(--muted); }
+
+  .btn-icon {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    margin-left: auto;
+  }
+
+  .btn-icon:hover { color: var(--red); background: rgba(231,76,60,0.1); }
+
+  .btn-add {
+    width: 100%;
+    padding: 13px;
+    background: rgba(245,166,35,0.1);
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-add:hover { background: rgba(245,166,35,0.2); }
+
+  /* ── REPORTS PAGE ── */
+  .month-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .month-selector select {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    appearance: none;
+    outline: none;
+  }
+
+  .report-emp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .report-emp-card:hover { border-color: var(--accent); }
+
+  .report-emp-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .report-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-box {
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    text-align: center;
+  }
+
+  .stat-box .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .stat-box .lbl {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── EXPORT BUTTONS ── */
+  .export-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .btn-export {
+    padding: 13px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-export.excel {
+    background: rgba(46,204,113,0.15);
+    color: var(--green);
+    border: 1px solid rgba(46,204,113,0.3);
+  }
+
+  .btn-export.pdf {
+    background: rgba(231,76,60,0.15);
+    color: var(--red);
+    border: 1px solid rgba(231,76,60,0.3);
+  }
+
+  .btn-export:hover { opacity: 0.8; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    align-items: flex-end;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--card);
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    border-top: 1px solid var(--border);
+    animation: slideUp 0.3s ease;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .modal-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .btn-close {
+    background: var(--surface);
+    border: none;
+    color: var(--muted);
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 14px;
+    transition: opacity 0.2s;
+  }
+
+  .btn-primary:hover { opacity: 0.9; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%; transform: translateX(-50%);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.3s;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+
+  .toast.show { opacity: 1; }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+  }
+
+  .empty .empty-icon { font-size: 40px; margin-bottom: 10px; }
+  .empty .empty-text { font-size: 14px; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ── DETAIL TABLE ── */
+  .detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .detail-table th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .detail-table td {
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(39,45,61,0.5);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  .detail-table tr:last-child td { border-bottom: none; }
+
+  .tour-badge {
+    background: rgba(52,152,219,0.15);
+    color: var(--blue);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚐</div>
+    <div class="logo-text"><span>N&S</span> Transport</div>
+  </div>
+  <div class="clock-display">
+    <div class="time" id="liveClock">--:--:--</div>
+    <div id="liveDate">--.--.----</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('checkin')">
+    <span class="tab-icon">⏱️</span> Erfassung
+  </button>
+  <button class="tab-btn" onclick="switchTab('today')">
+    <span class="tab-icon">📋</span> Heute
+  </button>
+  <button class="tab-btn" onclick="switchTab('reports')">
+    <span class="tab-icon">📊</span> Berichte
+  </button>
+  <button class="tab-btn" onclick="switchTab('employees')">
+    <span class="tab-icon">👥</span> Personal
+  </button>
+</div>
+
+<main>
+
+  <!-- ══ CHECK-IN PAGE ══ -->
+  <div class="page active" id="page-checkin">
+    <div class="card">
+      <div class="card-title">Mitarbeiter auswählen</div>
+      <div class="form-group">
+        <div class="employee-select-wrap">
+          <select id="empSelect" onchange="onEmployeeChange()">
+            <option value="">-- Mitarbeiter wählen --</option>
+          </select>
+          <span class="select-arrow">▼</span>
+        </div>
+      </div>
+
+      <div id="empStatus" style="margin-bottom:14px; display:none;">
+        <span class="status-badge out" id="statusBadge">
+          <span class="dot"></span> <span id="statusText">Nicht eingestempelt</span>
+        </span>
+        <span style="font-size:12px; color:var(--muted); margin-left:10px;" id="statusTime"></span>
+      </div>
+
+      <div class="form-group" id="tourGroup">
+        <label class="form-label">Tour-Nummer</label>
+        <input type="text" class="form-input" id="tourInput" placeholder="z.B. T-42" maxlength="20">
+      </div>
+    </div>
+
+    <button class="btn-checkin" id="btnCheckin" onclick="doCheckin()" disabled>
+      ▶ Arbeitszeit starten
+    </button>
+    <br>
+    <button class="btn-checkout" id="btnCheckout" onclick="doCheckout()" disabled style="margin-top:10px;">
+      ■ Arbeitszeit beenden
+    </button>
+  </div>
+
+  <!-- ══ TODAY PAGE ══ -->
+  <div class="page" id="page-today">
+    <div class="card">
+      <div class="card-title">Heutige Einträge</div>
+      <div id="todayList"></div>
+    </div>
+  </div>
+
+  <!-- ══ REPORTS PAGE ══ -->
+  <div class="page" id="page-reports">
+    <div class="card">
+      <div class="card-title">Monat wählen</div>
+      <div class="month-selector">
+        <div style="flex:1; position:relative;">
+          <select id="reportMonth" onchange="renderReports()" style="width:100%"></select>
+        </div>
+        <div style="flex:1; position:relative;">
+          <select id="reportYear" onchange="renderReports()" style="width:100%"></select>
+        </div>
+      </div>
+    </div>
+
+    <div id="reportsList"></div>
+
+    <div class="export-row">
+      <button class="btn-export excel" onclick="exportAllExcel()">
+        📊 Alle → Excel
+      </button>
+      <button class="btn-export pdf" onclick="exportAllPDF()">
+        📄 Alle → PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ EMPLOYEES PAGE ══ -->
+  <div class="page" id="page-employees">
+    <div class="card">
+      <div class="card-title">Mitarbeiterliste</div>
+      <div id="empList"></div>
+      <button class="btn-add" style="margin-top:14px;" onclick="openAddEmpModal()">
+        + Mitarbeiter hinzufügen
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ ADD EMPLOYEE MODAL ══ -->
+<div class="modal-overlay" id="addEmpModal">
+  <div class="modal">
+    <div class="modal-title">
+      Neuer Mitarbeiter
+      <button class="btn-close" onclick="closeModal('addEmpModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vorname</label>
+      <input type="text" class="form-input" id="newEmpFirst" placeholder="Vorname">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nachname</label>
+      <input type="text" class="form-input" id="newEmpLast" placeholder="Nachname">
+    </div>
+    <button class="btn-primary" onclick="addEmployee()">Speichern</button>
+  </div>
+</div>
+
+<!-- ══ DETAIL MODAL ══ -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="detailTitle">Details</span>
+      <button class="btn-close" onclick="closeModal('detailModal')">✕</button>
+    </div>
+    <div id="detailContent"></div>
+    <div class="export-row">
+      <button class="btn-export excel" onclick="exportEmpExcel()">📊 Excel</button>
+      <button class="btn-export pdf" onclick="exportEmpPDF()">📄 PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let employees = JSON.parse(localStorage.getItem('ns_employees') || '[]');
+let records   = JSON.parse(localStorage.getItem('ns_records')   || '[]');
+let currentDetailEmp = null;
+let currentDetailMonth = null;
+let currentDetailYear = null;
+
+// ══════════════════════════════════════════════
+// CLOCK
+// ══════════════════════════════════════════════
+function updateClock() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('de-DE');
+  const d = now.toLocaleDateString('de-DE');
+  document.getElementById('liveClock').textContent = t;
+  document.getElementById('liveDate').textContent = d;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ══════════════════════════════════════════════
+// SAVE
+// ══════════════════════════════════════════════
+function save() {
+  localStorage.setItem('ns_employees', JSON.stringify(employees));
+  localStorage.setItem('ns_records',   JSON.stringify(records));
+}
+
+// ══════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+// ══════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'today') renderToday();
+  if (name === 'reports') renderReports();
+  if (name === 'employees') renderEmployeeList();
+}
+
+// ══════════════════════════════════════════════
+// EMPLOYEE SELECT
+// ══════════════════════════════════════════════
+function populateSelect() {
+  const sel = document.getElementById('empSelect');
+  const val = sel.value;
+  sel.innerHTML = '<option value="">-- Mitarbeiter wählen --</option>';
+  employees.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = e.first + ' ' + e.last;
+    sel.appendChild(opt);
+  });
+  sel.value = val;
+}
+
+function onEmployeeChange() {
+  const id = document.getElementById('empSelect').value;
+  const statusDiv = document.getElementById('empStatus');
+  const btnIn  = document.getElementById('btnCheckin');
+  const btnOut = document.getElementById('btnCheckout');
+
+  if (!id) {
+    statusDiv.style.display = 'none';
+    btnIn.disabled = true;
+    btnOut.disabled = true;
+    return;
+  }
+
+  statusDiv.style.display = 'block';
+  const open = getOpenRecord(id);
+  const badge = document.getElementById('statusBadge');
+  const statusText = document.getElementById('statusText');
+  const statusTime = document.getElementById('statusTime');
+
+  if (open) {
+    badge.className = 'status-badge in';
+    badge.innerHTML = '<span class="dot"></span> <span>Aktiv seit</span>';
+    statusTime.textContent = new Date(open.start).toLocaleTimeString('de-DE');
+    btnIn.disabled = true;
+    btnOut.disabled = false;
+  } else {
+    badge.className = 'status-badge out';
+    badge.innerHTML = '<span class="dot"></span> <span>Nicht eingestempelt</span>';
+    statusTime.textContent = '';
+    btnIn.disabled = false;
+    btnOut.disabled = true;
+  }
+}
+
+function getOpenRecord(empId) {
+  return records.find(r => r.empId === empId && !r.end);
+}
+
+// ══════════════════════════════════════════════
+// CHECK-IN / CHECK-OUT
+// ══════════════════════════════════════════════
+function doCheckin() {
+  const id = document.getElementById('empSelect').value;
+  if (!id) return;
+  const tour = document.getElementById('tourInput').value.trim();
+
+  const now = new Date().toISOString();
+  records.push({
+    id: Date.now().toString(),
+    empId: id,
+    start: now,
+    end: null,
+    tour: tour,
+    date: now.slice(0, 10)
+  });
+  save();
+  showToast('✅ Eingestempelt!');
+  onEmployeeChange();
+  document.getElementById('tourInput').value = '';
+}
+
+function doCheckout() {
+  const id = document.getElementById('empSelect').value;
+  if (!id) return;
+  const open = getOpenRecord(id);
+  if (!open) return;
+
+  const tour = document.getElementById('tourInput').value.trim();
+  open.end = new Date().toISOString();
+  if (tour) open.tour = tour;
+  open.duration = Math.round((new Date(open.end) - new Date(open.start)) / 60000);
+  save();
+  showToast('🔴 Ausgestempelt! ' + formatDur(open.duration));
+  onEmployeeChange();
+  document.getElementById('tourInput').value = '';
+}
+
+// ══════════════════════════════════════════════
+// TODAY
+// ══════════════════════════════════════════════
+function renderToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayRecs = records.filter(r => r.date === today);
+  const el = document.getElementById('todayList');
+
+  if (!todayRecs.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Noch keine Einträge heute</div></div>';
+    return;
+  }
+
+  el.innerHTML = todayRecs.map(r => {
+    const emp = employees.find(e => e.id === r.empId);
+    const name = emp ? emp.first + ' ' + emp.last : 'Unbekannt';
+    const initials = emp ? emp.first[0] + emp.last[0] : '?';
+    const startT = new Date(r.start).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+    const endT   = r.end ? new Date(r.end).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}) : '…';
+    const dur    = r.duration ? formatDur(r.duration) : '⏳ läuft';
+    const tour   = r.tour ? ' · Tour: ' + r.tour : '';
+    return `
+      <div class="log-item">
+        <div class="log-avatar">${initials.toUpperCase()}</div>
+        <div>
+          <div class="log-name">${name}</div>
+          <div class="log-meta">${startT} – ${endT}${tour}</div>
+        </div>
+        <div class="log-duration">${dur}</div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// REPORTS
+// ══════════════════════════════════════════════
+function initMonthSelectors() {
+  const now = new Date();
+  const mSel = document.getElementById('reportMonth');
+  const ySel = document.getElementById('reportYear');
+  const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  months.forEach((m,i) => {
+    const o = document.createElement('option');
+    o.value = i+1; o.textContent = m;
+    if(i+1 === now.getMonth()+1) o.selected = true;
+    mSel.appendChild(o);
+  });
+  for(let y = now.getFullYear(); y >= now.getFullYear()-2; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    if(y === now.getFullYear()) o.selected = true;
+    ySel.appendChild(o);
+  }
+}
+
+function renderReports() {
+  const month = parseInt(document.getElementById('reportMonth').value);
+  const year  = parseInt(document.getElementById('reportYear').value);
+  const el = document.getElementById('reportsList');
+
+  const filtered = records.filter(r => {
+    const d = new Date(r.date);
+    return d.getMonth()+1 === month && d.getFullYear() === year && r.end;
+  });
+
+  if (!employees.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Keine Mitarbeiter erfasst</div></div>';
+    return;
+  }
+
+  el.innerHTML = employees.map(emp => {
+    const empRecs = filtered.filter(r => r.empId === emp.id);
+    const totalMin = empRecs.reduce((s,r) => s + (r.duration||0), 0);
+    const days = [...new Set(empRecs.map(r => r.date))].length;
+    const tours = empRecs.filter(r => r.tour).length;
+    const initials = (emp.first[0] + emp.last[0]).toUpperCase();
+
+    return `
+      <div class="report-emp-card" onclick="openDetail('${emp.id}', ${month}, ${year})">
+        <div class="report-emp-header">
+          <div class="emp-avatar">${initials}</div>
+          <div>
+            <div style="font-weight:700;">${emp.first} ${emp.last}</div>
+            <div style="font-size:11px; color:var(--muted);">${empRecs.length} Schichten</div>
+          </div>
+        </div>
+        <div class="report-stats">
+          <div class="stat-box">
+            <div class="val">${formatDur(totalMin)}</div>
+            <div class="lbl">Gesamt</div>
+          </div>
+          <div class="stat-box">
+            <div class="val">${days}</div>
+            <div class="lbl">Tage</div>
+          </div>
+          <div class="stat-box">
+            <div class="val">${tours}</div>
+            <div class="lbl">Touren</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openDetail(empId, month, year) {
+  currentDetailEmp = empId;
+  currentDetailMonth = month;
+  currentDetailYear = year;
+
+  const emp = employees.find(e => e.id === empId);
+  const filtered = records.filter(r => {
+    const d = new Date(r.date);
+    return r.empId === empId && d.getMonth()+1 === month && d.getFullYear() === year && r.end;
+  });
+
+  const totalMin = filtered.reduce((s,r) => s + (r.duration||0), 0);
+  const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+  document.getElementById('detailTitle').textContent = emp.first + ' ' + emp.last + ' – ' + months[month-1] + ' ' + year;
+
+  const rows = filtered.sort((a,b) => new Date(a.start)-new Date(b.start)).map(r => {
+    const dt = new Date(r.start).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'});
+    const st = new Date(r.start).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+    const et = new Date(r.end).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+    const dur = formatDur(r.duration||0);
+    const tour = r.tour ? `<span class="tour-badge">${r.tour}</span>` : '-';
+    return `<tr><td>${dt}</td><td>${st}</td><td>${et}</td><td>${dur}</td><td>${tour}</td></tr>`;
+  }).join('');
+
+  document.getElementById('detailContent').innerHTML = `
+    <div style="margin-bottom:12px; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--accent); font-weight:700;">
+      Gesamt: ${formatDur(totalMin)} · ${filtered.length} Schichten
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="detail-table">
+      <thead><tr><th>Datum</th><th>Von</th><th>Bis</th><th>Dauer</th><th>Tour</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">Keine Einträge</td></tr>'}</tbody>
+    </table>
+    </div>`;
+
+  document.getElementById('detailModal').classList.add('open');
+}
+
+// ══════════════════════════════════════════════
+// EMPLOYEES MGMT
+// ══════════════════════════════════════════════
+function renderEmployeeList() {
+  const el = document.getElementById('empList');
+  if (!employees.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">Noch keine Mitarbeiter</div></div>';
+    return;
+  }
+  el.innerHTML = employees.map(e => `
+    <div class="emp-item">
+      <div class="emp-avatar">${(e.first[0]+e.last[0]).toUpperCase()}</div>
+      <div>
+        <div class="emp-name">${e.first} ${e.last}</div>
+        <div class="emp-role">Mitarbeiter</div>
+      </div>
+      <button class="btn-icon" onclick="deleteEmployee('${e.id}')">🗑</button>
+    </div>`).join('');
+}
+
+function openAddEmpModal() {
+  document.getElementById('newEmpFirst').value = '';
+  document.getElementById('newEmpLast').value = '';
+  document.getElementById('addEmpModal').classList.add('open');
+}
+
+function addEmployee() {
+  const first = document.getElementById('newEmpFirst').value.trim();
+  const last  = document.getElementById('newEmpLast').value.trim();
+  if (!first || !last) { showToast('Bitte Vor- und Nachname eingeben', 'error'); return; }
+  employees.push({ id: Date.now().toString(), first, last });
+  save();
+  renderEmployeeList();
+  populateSelect();
+  closeModal('addEmpModal');
+  showToast('✅ ' + first + ' ' + last + ' hinzugefügt');
+}
+
+function deleteEmployee(id) {
+  if (!confirm('Mitarbeiter wirklich löschen? Alle Einträge bleiben erhalten.')) return;
+  employees = employees.filter(e => e.id !== id);
+  save();
+  renderEmployeeList();
+  populateSelect();
+  showToast('Gelöscht', 'error');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ══════════════════════════════════════════════
+// EXPORT HELPERS
+// ══════════════════════════════════════════════
+function getEmpReportData(empId, month, year) {
+  const emp = employees.find(e => e.id === empId);
+  const filtered = records.filter(r => {
+    const d = new Date(r.date);
+    return r.empId === empId && d.getMonth()+1 === month && d.getFullYear() === year && r.end;
+  }).sort((a,b) => new Date(a.start)-new Date(b.start));
+
+  return { emp, filtered };
+}
+
+// ── EXCEL SINGLE EMP ──
+function exportEmpExcel() {
+  const { emp, filtered } = getEmpReportData(currentDetailEmp, currentDetailMonth, currentDetailYear);
+  const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const totalMin = filtered.reduce((s,r) => s + (r.duration||0), 0);
+
+  const rows = filtered.map(r => ({
+    'Datum': new Date(r.start).toLocaleDateString('de-DE'),
+    'Wochentag': new Date(r.start).toLocaleDateString('de-DE', {weekday:'long'}),
+    'Beginn': new Date(r.start).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
+    'Ende': new Date(r.end).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
+    'Dauer (Min)': r.duration || 0,
+    'Dauer': formatDur(r.duration||0),
+    'Tour-Nr.': r.tour || ''
+  }));
+
+  rows.push({
+    'Datum': 'GESAMT',
+    'Wochentag': '',
+    'Beginn': '',
+    'Ende': '',
+    'Dauer (Min)': totalMin,
+    'Dauer': formatDur(totalMin),
+    'Tour-Nr.': filtered.length + ' Schichten'
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, emp.first + ' ' + emp.last);
+  XLSX.writeFile(wb, `${emp.last}_${emp.first}_${months[currentDetailMonth-1]}_${currentDetailYear}.xlsx`);
+  showToast('📊 Excel exportiert');
+}
+
+// ── PDF SINGLE EMP ──
+function exportEmpPDF() {
+  const { jsPDF } = window.jspdf;
+  const { emp, filtered } = getEmpReportData(currentDetailEmp, currentDetailMonth, currentDetailYear);
+  const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const totalMin = filtered.reduce((s,r) => s + (r.duration||0), 0);
+
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('N&S Transport – Arbeitszeitnachweis', 14, 18);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Mitarbeiter: ${emp.first} ${emp.last}`, 14, 28);
+  doc.text(`Monat: ${months[currentDetailMonth-1]} ${currentDetailYear}`, 14, 35);
+  doc.text(`Gesamt: ${formatDur(totalMin)} (${filtered.length} Schichten)`, 14, 42);
+
+  const tableData = filtered.map(r => [
+    new Date(r.start).toLocaleDateString('de-DE'),
+    new Date(r.start).toLocaleDateString('de-DE', {weekday:'short'}),
+    new Date(r.start).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
+    new Date(r.end).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
+    formatDur(r.duration||0),
+    r.tour || '-'
+  ]);
+
+  doc.autoTable({
+    startY: 50,
+    head: [['Datum','Tag','Von','Bis','Dauer','Tour']],
+    body: tableData,
+    foot: [['GESAMT','','','',formatDur(totalMin), filtered.length + ' Sch.']],
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [245, 166, 35], textColor: 0 },
+    footStyles: { fillColor: [220, 220, 220], fontStyle: 'bold' }
+  });
+
+  doc.save(`${emp.last}_${emp.first}_${months[currentDetailMonth-1]}_${currentDetailYear}.pdf`);
+  showToast('📄 PDF exportiert');
+}
+
+// ── EXCEL ALL EMPLOYEES ──
+function exportAllExcel() {
+  const month = parseInt(document.getElementById('reportMonth').value);
+  const year  = parseInt(document.getElementById('reportYear').value);
+  const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const wb = XLSX.utils.book_new();
+
+  employees.forEach(emp => {
+    const { filtered } = getEmpReportData(emp.id, month, year);
+    const totalMin = filtered.reduce((s,r) => s + (r.duration||0), 0);
+    const rows = filtered.map(r => ({
+      'Datum': new Date(r.start).toLocaleDateString('de-DE'),
+      'Tag': new Date(r.start).toLocaleDateString('de-DE', {weekday:'short'}),
+      'Beginn': new Date(r.start).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
+      'Ende': new Date(r.end).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
+      'Dauer': formatDur(r.duration||0),
+      'Tour-Nr.': r.tour || ''
+    }));
+    rows.push({'Datum':'GESAMT','Tag':'','Beginn':'','Ende':'','Dauer':formatDur(totalMin),'Tour-Nr.':filtered.length + ' Schichten'});
+    const sheetName = (emp.last + '_' + emp.first).substring(0, 31);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  XLSX.writeFile(wb, `NS_Transport_${months[month-1]}_${year}.xlsx`);
+  showToast('📊 Excel exportiert');
+}
+
+// ── PDF ALL EMPLOYEES ──
+function exportAllPDF() {
+  const { jsPDF } = window.jspdf;
+  const month = parseInt(document.getElementById('reportMonth').value);
+  const year  = parseInt(document.getElementById('reportYear').value);
+  const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const doc = new jsPDF();
+  let first = true;
+
+  employees.forEach(emp => {
+    if (!first) doc.addPage();
+    first = false;
+    const { filtered } = getEmpReportData(emp.id, month, year);
+    const totalMin = filtered.reduce((s,r) => s + (r.duration||0), 0);
+
+    doc.setFontSize(14); doc.setFont('helvetica','bold');
+    doc.text('N&S Transport – Arbeitszeitnachweis', 14, 16);
+    doc.setFontSize(11); doc.setFont('helvetica','normal');
+    doc.text(`${emp.first} ${emp.last}  |  ${months[month-1]} ${year}  |  Gesamt: ${formatDur(totalMin)}`, 14, 25);
+
+    const tableData = filtered.map(r => [
+      new Date(r.start).toLocaleDateString('de-DE'),
+      new Date(r.start).toLocaleDateString('de-DE', {weekday:'short'}),
+      new Date(r.start).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
+      new Date(r.end).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
+      formatDur(r.duration||0),
+      r.tour || '-'
+    ]);
+
+    doc.autoTable({
+      startY: 32,
+      head: [['Datum','Tag','Von','Bis','Dauer','Tour']],
+      body: tableData.length ? tableData : [['Keine Einträge','','','','','']],
+      foot: tableData.length ? [['GESAMT','','','',formatDur(totalMin),filtered.length+' Sch.']] : [],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [245, 166, 35], textColor: 0 },
+      footStyles: { fillColor: [220,220,220], fontStyle:'bold' }
+    });
+  });
+
+  doc.save(`NS_Transport_${months[month-1]}_${year}_Alle.pdf`);
+  showToast('📄 PDF exportiert');
+}
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function formatDur(min) {
+  if (!min) return '0:00';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h + ':' + String(m).padStart(2, '0') + ' Std';
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+populateSelect();
+initMonthSelectors();
+renderEmployeeList();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").then(() => console.log("SW registered")).catch(e => console.log("SW error", e));
+  });
+}
+</script>
+</body>
+</html>
