@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="de" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#f5a623">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="N&amp;S Zeit">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>N&S Transport – Zeiterfassung</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+  :root {
+    --bg:#0d0f14; --surface:#151821; --card:#1c2030; --border:#272d3d;
+    --accent:#f5a623; --accent2:#e8703a; --green:#2ecc71; --red:#e74c3c;
+    --blue:#3498db; --text:#e8ecf4; --muted:#6b7490;
+    --radius:14px; --radius-sm:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden;}
+  header{background:white;border-bottom:1px solid #e0e0e0;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .logo{display:flex;align-items:center;gap:10px;}
+  .logo-icon{width:38px;height:38px;background:white;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:2px;}
+  .logo-text{font-size:15px;font-weight:700;letter-spacing:0.5px;color:#1c2030;}
+  .logo-text span{color:var(--accent);}
+  .clock-display{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);text-align:right;}
+  .clock-display .time{font-size:16px;font-weight:600;color:var(--text);}
+  .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+  .tab-btn{flex:1;min-width:70px;padding:12px 6px;background:none;border:none;color:var(--muted);font-family:'Outfit',sans-serif;font-size:11px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .tab-btn .tab-icon{font-size:16px;}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+  main{padding:16px;max-width:600px;margin:0 auto;}
+  .page{display:none;} .page.active{display:block;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;}
+  .card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:14px;}
+  .employee-select-wrap{position:relative;}
+  .employee-select-wrap select,.form-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'Outfit',sans-serif;font-size:15px;padding:12px 14px;appearance:none;outline:none;transition:border-color 0.2s;}
+  .employee-select-wrap select:focus,.form-input:focus{border-color:var(--accent);}
+  .select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:12px;}
+  .form-label{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;display:block;letter-spacing:0.5px;}
+  .form-group{margin-bottom:14px;}
+  .status-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;}
+  .status-badge.in{background:rgba(46,204,113,0.15);color:var(--green);}
+  .status-badge.out{background:rgba(107,116,144,0.15);color:var(--muted);}
+  .status-badge .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+  .status-badge.in .dot{animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  .btn-checkin,.btn-checkout{width:100%;padding:16px;border:none;border-radius:var(--radius);font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;}
+  .btn-checkin{background:linear-gradient(135deg,#27ae60,#2ecc71);color:white;}
+  .btn-checkout{background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;}
+  .btn-checkin:active,.btn-checkout:active{transform:scale(0.97);}
+  .btn-checkin:disabled,.btn-checkout:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+  .log-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+  .log-item:last-child{border-bottom:none;}
+  .log-avatar{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;}
+  .log-name{font-size:14px;font-weight:600;}
+  .log-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+  .log-duration{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--accent);}
+  .emp-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+  .emp-item:last-child{border-bottom:none;}
+  .emp-avatar{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#3a7bd5,#3a9bdc);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0;}
+  .emp-name{font-size:14px;font-weight:600;}
+  .emp-role{font-size:11px;color:var(--muted);}
+  .btn-add{width:100%;padding:13px;background:rgba(245,166,35,0.1);border:1px dashed var(--accent);border-radius:var(--radius-sm);color:var(--accent);font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .btn-add:hover{background:rgba(245,166,35,0.2);}
+  .month-selector{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .month-selector select{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;padding:10px 14px;appearance:none;outline:none;}
+  .report-emp-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;cursor:pointer;transition:border-color 0.2s;}
+  .report-emp-card:hover{border-color:var(--accent);}
+  .report-emp-header{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .report-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .stat-box{background:var(--card);border-radius:var(--radius-sm);padding:10px;text-align:center;}
+  .stat-box .val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--accent);}
+  .stat-box .lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+  .export-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;}
+  .btn-export{padding:13px;border:none;border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .btn-export.excel{background:rgba(46,204,113,0.15);color:var(--green);border:1px solid rgba(46,204,113,0.3);}
+  .btn-export.pdf{background:rgba(231,76,60,0.15);color:var(--red);border:1px solid rgba(231,76,60,0.3);}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:flex-end;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--card);border-radius:20px 20px 0 0;padding:24px 20px;width:100%;max-width:600px;margin:0 auto;border-top:1px solid var(--border);animation:slideUp 0.3s ease;max-height:85vh;overflow-y:auto;}
+  @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .modal-title{font-size:17px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;}
+  .btn-close{background:var(--surface);border:none;color:var(--muted);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+  .btn-primary{width:100%;padding:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--radius-sm);color:white;font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:14px;transition:opacity 0.2s;}
+  .btn-primary:hover{opacity:0.9;}
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:30px;padding:10px 20px;font-size:13px;font-weight:600;z-index:300;opacity:0;transition:opacity 0.3s;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.5);}
+  .toast.show{opacity:1;}
+  .toast.success{border-color:var(--green);color:var(--green);}
+  .toast.error{border-color:var(--red);color:var(--red);}
+  .empty{text-align:center;padding:40px 20px;color:var(--muted);}
+  .empty .empty-icon{font-size:40px;margin-bottom:10px;}
+  .empty .empty-text{font-size:14px;}
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  .detail-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .detail-table th{text-align:left;color:var(--muted);font-weight:600;padding:8px 4px;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;}
+  .detail-table td{padding:8px 4px;border-bottom:1px solid rgba(39,45,61,0.5);font-family:'JetBrains Mono',monospace;font-size:11px;}
+  .detail-table tr:last-child td{border-bottom:none;}
+  .tour-badge{background:rgba(52,152,219,0.15);color:var(--blue);padding:2px 8px;border-radius:10px;font-size:11px;font-family:'Outfit',sans-serif;font-weight:600;}
+  /* ADMIN */
+  .admin-bar{border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;}
+  .admin-bar.locked{background:rgba(107,116,144,0.1);border:1px solid var(--border);color:var(--muted);}
+  .admin-bar.unlocked{background:rgba(245,166,35,0.12);border:1px solid var(--accent);color:var(--accent);}
+  .btn-sm{padding:6px 14px;border:none;border-radius:6px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
+  .btn-sm.login-btn{background:var(--accent);color:#000;}
+  .btn-sm.logout-btn{background:var(--border);color:var(--text);}
+  .btn-edit{background:rgba(52,152,219,0.15);border:none;color:var(--blue);cursor:pointer;font-size:14px;padding:5px;border-radius:6px;margin-left:3px;}
+  .btn-del{background:rgba(231,76,60,0.15);border:none;color:var(--red);cursor:pointer;font-size:14px;padding:5px;border-radius:6px;margin-left:3px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <img src="data:image/jpeg;base64,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" style="width:100%;height:100%;object-fit:contain;border-radius:8px;">
+    </div>
+    <div class="logo-text"><span>N&S</span> Transport</div>
+  </div>
+  <div class="clock-display">
+    <div class="time" id="liveClock">--:--:--</div>
+    <div id="liveDate">--.--.----</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('checkin',this)"><span class="tab-icon">⏱️</span>Erfassung</button>
+  <button class="tab-btn" onclick="switchTab('today',this)"><span class="tab-icon">📋</span>Heute</button>
+  <button class="tab-btn" onclick="switchTab('reports',this)"><span class="tab-icon">📊</span>Berichte</button>
+  <button class="tab-btn" onclick="switchTab('employees',this)"><span class="tab-icon">👥</span>Personal</button>
+  <button class="tab-btn" onclick="switchTab('tours',this)"><span class="tab-icon">🚚</span>Touren</button>
+</div>
+
+<main>
+
+<!-- CHECK-IN -->
+<div class="page active" id="page-checkin">
+  <div class="admin-bar locked" id="adminBar">
+    <span id="adminBarText">🔒 Nur-Lese-Modus</span>
+    <button class="btn-sm login-btn" id="adminLoginBtn" onclick="openAdminLogin()">Admin Login</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Mitarbeiter auswählen</div>
+    <div class="form-group">
+      <div class="employee-select-wrap">
+        <select id="empSelect" onchange="onEmployeeChange()">
+          <option value="">-- Mitarbeiter wählen --</option>
+        </select>
+        <span class="select-arrow">▼</span>
+      </div>
+    </div>
+    <div id="empStatus" style="margin-bottom:14px;display:none;">
+      <span class="status-badge out" id="statusBadge">
+        <span class="dot"></span><span id="statusText">Nicht eingestempelt</span>
+      </span>
+      <span style="font-size:12px;color:var(--muted);margin-left:10px;" id="statusTime"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tour auswählen (optional)</label>
+      <div class="employee-select-wrap">
+        <select id="tourSelect" onchange="onTourSelectChange()">
+          <option value="">-- Tour wählen --</option>
+        </select>
+        <span class="select-arrow">▼</span>
+      </div>
+    </div>
+    <input type="hidden" id="tourInput" value="">
+  </div>
+  <button class="btn-checkin" id="btnCheckin" onclick="doCheckin()" disabled>▶ Arbeitszeit starten</button>
+  <br>
+  <button class="btn-checkout" id="btnCheckout" onclick="doCheckout()" disabled style="margin-top:10px;">■ Arbeitszeit beenden</button>
+</div>
+
+<!-- TODAY -->
+<div class="page" id="page-today">
+  <div class="card">
+    <div class="card-title">Heutige Einträge</div>
+    <div id="todayList"></div>
+  </div>
+</div>
+
+<!-- REPORTS -->
+<div class="page" id="page-reports">
+  <div class="card">
+    <div class="card-title">Monat wählen</div>
+    <div class="month-selector">
+      <div style="flex:1;position:relative;">
+        <select id="reportMonth" onchange="renderReports()" style="width:100%"></select>
+      </div>
+      <div style="flex:1;position:relative;">
+        <select id="reportYear" onchange="renderReports()" style="width:100%"></select>
+      </div>
+    </div>
+  </div>
+  <div id="reportsList"></div>
+  <div class="export-row">
+    <button class="btn-export excel" onclick="exportAllExcel()">📊 Alle → Excel</button>
+    <button class="btn-export pdf" onclick="exportAllPDF()">📄 Alle → PDF</button>
+  </div>
+</div>
+
+<!-- EMPLOYEES -->
+<div class="page" id="page-employees">
+  <div class="card">
+    <div class="card-title">Mitarbeiterliste</div>
+    <div id="empList"></div>
+    <div id="addEmpBtnWrap" style="display:none;margin-top:14px;">
+      <button class="btn-add" onclick="openAddEmpModal()">+ Mitarbeiter hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOURS -->
+<div class="page" id="page-tours">
+  <div class="card">
+    <div class="card-title">Tourliste</div>
+    <div id="tourList"></div>
+    <div id="addTourBtnWrap" style="display:none;margin-top:14px;">
+      <button class="btn-add" onclick="openAddTourModal()">+ Tour hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ADMIN LOGIN MODAL -->
+<div class="modal-overlay" id="adminLoginModal">
+  <div class="modal">
+    <div class="modal-title">Admin Login <button class="btn-close" onclick="closeModal('adminLoginModal')">✕</button></div>
+    <div class="form-group">
+      <label class="form-label">Admin auswählen</label>
+      <div class="employee-select-wrap">
+        <select class="form-input" id="adminSelect">
+          <option value="">-- Admin wählen --</option>
+          <option value="nader">Nader Tavana</option>
+          <option value="maryam">Maryam Shahbazi</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="doAdminLogin()">Einloggen</button>
+  </div>
+</div>
+
+<!-- ADD EMPLOYEE MODAL -->
+<div class="modal-overlay" id="addEmpModal">
+  <div class="modal">
+    <div class="modal-title">Neuer Mitarbeiter <button class="btn-close" onclick="closeModal('addEmpModal')">✕</button></div>
+    <div class="form-group">
+      <label class="form-label">Vorname</label>
+      <input type="text" class="form-input" id="newEmpFirst" placeholder="Vorname">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nachname</label>
+      <input type="text" class="form-input" id="newEmpLast" placeholder="Nachname">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Berufsbezeichnung / Semat</label>
+      <div class="employee-select-wrap">
+        <select class="form-input" id="newEmpRole">
+          <option value="Fahrer">Fahrer (راننده)</option>
+          <option value="Sekretär/in">Sekretär/in (منشی)</option>
+          <option value="Disponent">Disponent (دیسپاچر)</option>
+          <option value="Lagerarbeiter">Lagerarbeiter (انباردار)</option>
+          <option value="Reinigungskraft">Reinigungskraft (نظافتچی)</option>
+          <option value="Mitarbeiter">Mitarbeiter (کارمند)</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="addEmployee()">Speichern</button>
+  </div>
+</div>
+
+<!-- EDIT EMPLOYEE MODAL -->
+<div class="modal-overlay" id="editEmpModal">
+  <div class="modal">
+    <div class="modal-title">Mitarbeiter bearbeiten <button class="btn-close" onclick="closeModal('editEmpModal')">✕</button></div>
+    <div class="form-group">
+      <label class="form-label">Vorname</label>
+      <input type="text" class="form-input" id="editEmpFirst">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nachname</label>
+      <input type="text" class="form-input" id="editEmpLast">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Berufsbezeichnung</label>
+      <div class="employee-select-wrap">
+        <select class="form-input" id="editEmpRole">
+          <option value="Fahrer">Fahrer (راننده)</option>
+          <option value="Sekretär/in">Sekretär/in (منشی)</option>
+          <option value="Disponent">Disponent (دیسپاچر)</option>
+          <option value="Lagerarbeiter">Lagerarbeiter (انباردار)</option>
+          <option value="Reinigungskraft">Reinigungskraft (نظافتچی)</option>
+          <option value="Mitarbeiter">Mitarbeiter (کارمند)</option>
+        </select>
+      </div>
+    </div>
+    <input type="hidden" id="editEmpId">
+    <button class="btn-primary" onclick="saveEditEmp()">Speichern</button>
+  </div>
+</div>
+
+<!-- ADD TOUR MODAL -->
+<div class="modal-overlay" id="addTourModal">
+  <div class="modal">
+    <div class="modal-title">Neue Tour <button class="btn-close" onclick="closeModal('addTourModal')">✕</button></div>
+    <div class="form-group">
+      <label class="form-label">Tour-Name / Nummer</label>
+      <input type="text" class="form-input" id="newTourName" placeholder="z.B. T-42">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Firma / Auftraggeber</label>
+      <input type="text" class="form-input" id="newTourCompany" placeholder="z.B. LK-Transport GmbH">
+    </div>
+    <button class="btn-primary" onclick="addTour()">Speichern</button>
+  </div>
+</div>
+
+<!-- EDIT TOUR MODAL -->
+<div class="modal-overlay" id="editTourModal">
+  <div class="modal">
+    <div class="modal-title">Tour bearbeiten <button class="btn-close" onclick="closeModal('editTourModal')">✕</button></div>
+    <div class="form-group">
+      <label class="form-label">Tour-Name / Nummer</label>
+      <input type="text" class="form-input" id="editTourName">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Firma / Auftraggeber</label>
+      <input type="text" class="form-input" id="editTourCompany">
+    </div>
+    <input type="hidden" id="editTourId">
+    <button class="btn-primary" onclick="saveEditTour()">Speichern</button>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="detailTitle">Details</span>
+      <button class="btn-close" onclick="closeModal('detailModal')">✕</button>
+    </div>
+    <div id="detailContent"></div>
+    <div class="export-row">
+      <button class="btn-export excel" onclick="exportEmpExcel()">📊 Excel</button>
+      <button class="btn-export pdf" onclick="exportEmpPDF()">📄 PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT RECORD MODAL -->
+<div class="modal-overlay" id="editRecordModal">
+  <div class="modal">
+    <div class="modal-title">Eintrag bearbeiten <button class="btn-close" onclick="closeModal('editRecordModal')">✕</button></div>
+    <div class="form-group">
+      <label class="form-label">Beginn</label>
+      <input type="datetime-local" class="form-input" id="editRecStart">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ende</label>
+      <input type="datetime-local" class="form-input" id="editRecEnd">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tour</label>
+      <input type="text" class="form-input" id="editRecTour" placeholder="z.B. T-42">
+    </div>
+    <input type="hidden" id="editRecId">
+    <button class="btn-primary" onclick="saveEditRecord()">Speichern</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCSgwtC1mj0q3_Hc5hAW-B5PzVNCKV5nMQ",
+  authDomain: "ns-transport-90c93.firebaseapp.com",
+  projectId: "ns-transport-90c93",
+  storageBucket: "ns-transport-90c93.firebasestorage.app",
+  messagingSenderId: "996683285387",
+  appId: "1:996683285387:web:fb02941794f88f4c23658e"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ── STATE ──
+let employees = [], records = [], tours = [];
+let isAdmin = false;
+let currentDetailEmp = null, currentDetailMonth = null, currentDetailYear = null;
+
+// ── CLOCK ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('liveClock').textContent = now.toLocaleTimeString('de-DE');
+  document.getElementById('liveDate').textContent = now.toLocaleDateString('de-DE');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── TOAST ──
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+// ── FIREBASE LISTENERS ──
+onSnapshot(collection(db, 'employees'), snap => {
+  employees = snap.docs.map(d => d.data());
+  populateEmpSelect();
+  renderEmployeeList();
+});
+
+onSnapshot(collection(db, 'records'), snap => {
+  records = snap.docs.map(d => d.data());
+  renderToday();
+});
+
+onSnapshot(collection(db, 'tours'), snap => {
+  tours = snap.docs.map(d => d.data());
+  populateTourSelect();
+  renderTourList();
+});
+
+// ── TABS ──
+function switchTab(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'today') renderToday();
+  if (name === 'reports') renderReports();
+  if (name === 'employees') renderEmployeeList();
+  if (name === 'tours') renderTourList();
+}
+
+// ── SELECTS ──
+function populateEmpSelect() {
+  const sel = document.getElementById('empSelect');
+  const val = sel.value;
+  sel.innerHTML = '<option value="">-- Mitarbeiter wählen --</option>';
+  employees.forEach(e => {
+    const o = document.createElement('option');
+    o.value = e.id;
+    o.textContent = e.first + ' ' + e.last + (e.role ? ' (' + e.role + ')' : '');
+    sel.appendChild(o);
+  });
+  sel.value = val;
+}
+
+function populateTourSelect() {
+  const sel = document.getElementById('tourSelect');
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = '<option value="">-- Tour wählen --</option>';
+  tours.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.name;
+    o.textContent = t.name + (t.company ? ' · ' + t.company : '');
+    sel.appendChild(o);
+  });
+  sel.value = val;
+}
+
+function onTourSelectChange() {
+  document.getElementById('tourInput').value = document.getElementById('tourSelect').value;
+}
+
+function onEmployeeChange() {
+  const id = document.getElementById('empSelect').value;
+  const statusDiv = document.getElementById('empStatus');
+  const btnIn = document.getElementById('btnCheckin');
+  const btnOut = document.getElementById('btnCheckout');
+  if (!id) { statusDiv.style.display='none'; btnIn.disabled=true; btnOut.disabled=true; return; }
+  statusDiv.style.display = 'block';
+  const open = records.find(r => r.empId === id && !r.end);
+  const badge = document.getElementById('statusBadge');
+  const statusTime = document.getElementById('statusTime');
+  if (open) {
+    badge.className = 'status-badge in';
+    badge.innerHTML = '<span class="dot"></span><span>Aktiv seit</span>';
+    statusTime.textContent = new Date(open.start).toLocaleTimeString('de-DE');
+    btnIn.disabled = true; btnOut.disabled = false;
+  } else {
+    badge.className = 'status-badge out';
+    badge.innerHTML = '<span class="dot"></span><span>Nicht eingestempelt</span>';
+    statusTime.textContent = '';
+    btnIn.disabled = false; btnOut.disabled = true;
+  }
+}
+
+// ── CHECK-IN / OUT ──
+async function doCheckin() {
+  const id = document.getElementById('empSelect').value;
+  if (!id) return;
+  const tour = document.getElementById('tourInput').value;
+  const now = new Date().toISOString();
+  const rec = { id: Date.now().toString(), empId: id, start: now, end: null, tour, date: now.slice(0,10) };
+  await setDoc(doc(db, 'records', rec.id), rec);
+  showToast('✅ Eingestempelt!');
+  onEmployeeChange();
+  document.getElementById('tourSelect').value = '';
+  document.getElementById('tourInput').value = '';
+}
+
+async function doCheckout() {
+  const id = document.getElementById('empSelect').value;
+  if (!id) return;
+  const open = records.find(r => r.empId === id && !r.end);
+  if (!open) return;
+  const tour = document.getElementById('tourInput').value || open.tour;
+  open.end = new Date().toISOString();
+  open.tour = tour;
+  open.duration = Math.round((new Date(open.end) - new Date(open.start)) / 60000);
+  await setDoc(doc(db, 'records', open.id), open);
+  showToast('🔴 Ausgestempelt! ' + formatDur(open.duration));
+  onEmployeeChange();
+  document.getElementById('tourSelect').value = '';
+  document.getElementById('tourInput').value = '';
+}
+
+// ── TODAY ──
+function renderToday() {
+  const today = new Date().toISOString().slice(0,10);
+  const el = document.getElementById('todayList');
+  if (!el) return;
+  const todayRecs = records.filter(r => r.date === today);
+  if (!todayRecs.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Noch keine Einträge heute</div></div>';
+    return;
+  }
+  el.innerHTML = todayRecs.map(r => {
+    const emp = employees.find(e => e.id === r.empId);
+    const name = emp ? emp.first + ' ' + emp.last : 'Unbekannt';
+    const initials = emp ? (emp.first[0]+emp.last[0]).toUpperCase() : '?';
+    const st = new Date(r.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    const et = r.end ? new Date(r.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : '…';
+    const dur = r.duration ? formatDur(r.duration) : '⏳ läuft';
+    const tour = r.tour ? ' · ' + r.tour : '';
+    return `<div class="log-item">
+      <div class="log-avatar">${initials}</div>
+      <div><div class="log-name">${name}</div><div class="log-meta">${st} – ${et}${tour}</div></div>
+      <div class="log-duration">${dur}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── REPORTS ──
+function initMonthSelectors() {
+  const now = new Date();
+  const ms = document.getElementById('reportMonth');
+  const ys = document.getElementById('reportYear');
+  ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'].forEach((m,i) => {
+    const o = document.createElement('option');
+    o.value = i+1; o.textContent = m;
+    if(i+1 === now.getMonth()+1) o.selected = true;
+    ms.appendChild(o);
+  });
+  for(let y=now.getFullYear(); y>=now.getFullYear()-2; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    if(y===now.getFullYear()) o.selected = true;
+    ys.appendChild(o);
+  }
+}
+
+function renderReports() {
+  const month = parseInt(document.getElementById('reportMonth').value);
+  const year  = parseInt(document.getElementById('reportYear').value);
+  const el = document.getElementById('reportsList');
+  if(!employees.length) { el.innerHTML='<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Keine Mitarbeiter</div></div>'; return; }
+  const filtered = records.filter(r => { const d=new Date(r.date); return d.getMonth()+1===month && d.getFullYear()===year && r.end; });
+  el.innerHTML = employees.map(emp => {
+    const er = filtered.filter(r => r.empId === emp.id);
+    const total = er.reduce((s,r) => s+(r.duration||0), 0);
+    const days = [...new Set(er.map(r=>r.date))].length;
+    const tourCount = er.filter(r=>r.tour).length;
+    const init = (emp.first[0]+emp.last[0]).toUpperCase();
+    return `<div class="report-emp-card" onclick="openDetail('${emp.id}',${month},${year})">
+      <div class="report-emp-header">
+        <div class="emp-avatar">${init}</div>
+        <div><div style="font-weight:700;">${emp.first} ${emp.last}</div><div style="font-size:11px;color:var(--muted);">${emp.role||'Mitarbeiter'} · ${er.length} Schichten</div></div>
+      </div>
+      <div class="report-stats">
+        <div class="stat-box"><div class="val">${formatDur(total)}</div><div class="lbl">Gesamt</div></div>
+        <div class="stat-box"><div class="val">${days}</div><div class="lbl">Tage</div></div>
+        <div class="stat-box"><div class="val">${tourCount}</div><div class="lbl">Touren</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openDetail(empId, month, year) {
+  currentDetailEmp=empId; currentDetailMonth=month; currentDetailYear=year;
+  const emp = employees.find(e=>e.id===empId);
+  const filtered = records.filter(r => { const d=new Date(r.date); return r.empId===empId && d.getMonth()+1===month && d.getFullYear()===year && r.end; });
+  const total = filtered.reduce((s,r) => s+(r.duration||0), 0);
+  const months=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  document.getElementById('detailTitle').textContent = emp.first+' '+emp.last+' – '+months[month-1]+' '+year;
+  const adminHead = isAdmin ? '<th></th>' : '';
+  const rows = filtered.sort((a,b)=>new Date(a.start)-new Date(b.start)).map(r => {
+    const dt = new Date(r.start).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+    const st = new Date(r.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    const et = new Date(r.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    const dur = formatDur(r.duration||0);
+    const tour = r.tour ? `<span class="tour-badge">${r.tour}</span>` : '-';
+    const adminBtns = isAdmin ? `<td><button class="btn-edit" onclick="openEditRecordModal('${r.id}')">✏️</button><button class="btn-del" onclick="deleteRecord('${r.id}')">🗑</button></td>` : '';
+    return `<tr><td>${dt}</td><td>${st}</td><td>${et}</td><td>${dur}</td><td>${tour}</td>${adminBtns}</tr>`;
+  }).join('');
+  document.getElementById('detailContent').innerHTML = `
+    <div style="margin-bottom:12px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent);font-weight:700;">Gesamt: ${formatDur(total)} · ${filtered.length} Schichten</div>
+    <div style="overflow-x:auto;"><table class="detail-table">
+      <thead><tr><th>Datum</th><th>Von</th><th>Bis</th><th>Dauer</th><th>Tour</th>${adminHead}</tr></thead>
+      <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">Keine Einträge</td></tr>'}</tbody>
+    </table></div>`;
+  document.getElementById('detailModal').classList.add('open');
+}
+
+// ── EMPLOYEES ──
+function renderEmployeeList() {
+  const el = document.getElementById('empList');
+  if(!el) return;
+  if(!employees.length) { el.innerHTML='<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">Noch keine Mitarbeiter</div></div>'; return; }
+  el.innerHTML = employees.map(e => `
+    <div class="emp-item">
+      <div class="emp-avatar">${(e.first[0]+e.last[0]).toUpperCase()}</div>
+      <div style="flex:1;"><div class="emp-name">${e.first} ${e.last}</div><div class="emp-role">${e.role||'Mitarbeiter'}</div></div>
+      ${isAdmin ? `<button class="btn-edit" onclick="openEditEmpModal('${e.id}')">✏️</button><button class="btn-del" onclick="deleteEmployee('${e.id}')">🗑</button>` : ''}
+    </div>`).join('');
+  const wrap = document.getElementById('addEmpBtnWrap');
+  if(wrap) wrap.style.display = isAdmin ? 'block' : 'none';
+}
+
+function openAddEmpModal() {
+  document.getElementById('newEmpFirst').value='';
+  document.getElementById('newEmpLast').value='';
+  document.getElementById('addEmpModal').classList.add('open');
+}
+
+async function addEmployee() {
+  const first = document.getElementById('newEmpFirst').value.trim();
+  const last  = document.getElementById('newEmpLast').value.trim();
+  const role  = document.getElementById('newEmpRole').value;
+  if(!first||!last) { showToast('Bitte Name eingeben','error'); return; }
+  const emp = { id: Date.now().toString(), first, last, role };
+  await setDoc(doc(db,'employees',emp.id), emp);
+  closeModal('addEmpModal');
+  showToast('✅ '+first+' '+last+' hinzugefügt');
+}
+
+function openEditEmpModal(id) {
+  const e = employees.find(x=>x.id===id);
+  if(!e) return;
+  document.getElementById('editEmpId').value   = e.id;
+  document.getElementById('editEmpFirst').value = e.first;
+  document.getElementById('editEmpLast').value  = e.last;
+  document.getElementById('editEmpRole').value  = e.role||'Mitarbeiter';
+  document.getElementById('editEmpModal').classList.add('open');
+}
+
+async function saveEditEmp() {
+  const id    = document.getElementById('editEmpId').value;
+  const first = document.getElementById('editEmpFirst').value.trim();
+  const last  = document.getElementById('editEmpLast').value.trim();
+  const role  = document.getElementById('editEmpRole').value;
+  if(!first||!last) { showToast('Name eingeben','error'); return; }
+  const e = employees.find(x=>x.id===id);
+  await setDoc(doc(db,'employees',id), {...e, first, last, role});
+  closeModal('editEmpModal');
+  showToast('✅ Aktualisiert');
+}
+
+async function deleteEmployee(id) {
+  if(!confirm('Mitarbeiter löschen?')) return;
+  await deleteDoc(doc(db,'employees',id));
+  showToast('Gelöscht','error');
+}
+
+// ── TOURS ──
+function renderTourList() {
+  const el = document.getElementById('tourList');
+  if(!el) return;
+  if(!tours.length) { el.innerHTML='<div class="empty"><div class="empty-icon">🚚</div><div class="empty-text">Noch keine Touren</div></div>'; return; }
+  el.innerHTML = tours.map(t => `
+    <div class="emp-item">
+      <div class="emp-avatar" style="background:linear-gradient(135deg,#f5a623,#e8703a);">🚚</div>
+      <div style="flex:1;"><div class="emp-name">${t.name}</div><div class="emp-role">${t.company||'-'}</div></div>
+      ${isAdmin ? `<button class="btn-edit" onclick="openEditTourModal('${t.id}')">✏️</button><button class="btn-del" onclick="deleteTour('${t.id}')">🗑</button>` : ''}
+    </div>`).join('');
+  const wrap = document.getElementById('addTourBtnWrap');
+  if(wrap) wrap.style.display = isAdmin ? 'block' : 'none';
+}
+
+function openAddTourModal() {
+  document.getElementById('newTourName').value='';
+  document.getElementById('newTourCompany').value='';
+  document.getElementById('addTourModal').classList.add('open');
+}
+
+async function addTour() {
+  const name    = document.getElementById('newTourName').value.trim();
+  const company = document.getElementById('newTourCompany').value.trim();
+  if(!name) { showToast('Tour-Name eingeben','error'); return; }
+  const t = { id: Date.now().toString(), name, company };
+  await setDoc(doc(db,'tours',t.id), t);
+  closeModal('addTourModal');
+  showToast('✅ Tour '+name+' hinzugefügt');
+}
+
+function openEditTourModal(id) {
+  const t = tours.find(x=>x.id===id);
+  if(!t) return;
+  document.getElementById('editTourId').value      = t.id;
+  document.getElementById('editTourName').value    = t.name;
+  document.getElementById('editTourCompany').value = t.company||'';
+  document.getElementById('editTourModal').classList.add('open');
+}
+
+async function saveEditTour() {
+  const id      = document.getElementById('editTourId').value;
+  const name    = document.getElementById('editTourName').value.trim();
+  const company = document.getElementById('editTourCompany').value.trim();
+  if(!name) { showToast('Tour-Name eingeben','error'); return; }
+  const t = tours.find(x=>x.id===id);
+  await setDoc(doc(db,'tours',id), {...t, name, company});
+  closeModal('editTourModal');
+  showToast('✅ Tour aktualisiert');
+}
+
+async function deleteTour(id) {
+  if(!confirm('Tour löschen?')) return;
+  await deleteDoc(doc(db,'tours',id));
+  showToast('Tour gelöscht','error');
+}
+
+// ── ADMIN ──
+function openAdminLogin() {
+  if(isAdmin) { isAdmin=false; updateAdminUI(); showToast('Abgemeldet'); return; }
+  document.getElementById('adminSelect').value='';
+  document.getElementById('adminLoginModal').classList.add('open');
+}
+
+function doAdminLogin() {
+  const sel = document.getElementById('adminSelect').value;
+  if(!sel) { showToast('Admin wählen','error'); return; }
+  isAdmin = true;
+  const names = { nader:'Nader Tavana', maryam:'Maryam Shahbazi' };
+  closeModal('adminLoginModal');
+  updateAdminUI();
+  showToast('✅ Willkommen, '+names[sel]+'!');
+}
+
+function updateAdminUI() {
+  const bar = document.getElementById('adminBar');
+  const txt = document.getElementById('adminBarText');
+  const btn = document.getElementById('adminLoginBtn');
+  if(isAdmin) {
+    bar.className='admin-bar unlocked';
+    txt.textContent='🔓 Admin-Modus aktiv';
+    btn.className='btn-sm logout-btn';
+    btn.textContent='Abmelden';
+  } else {
+    bar.className='admin-bar locked';
+    txt.textContent='🔒 Nur-Lese-Modus';
+    btn.className='btn-sm login-btn';
+    btn.textContent='Admin Login';
+  }
+  renderEmployeeList();
+  renderTourList();
+  if(currentDetailEmp) openDetail(currentDetailEmp, currentDetailMonth, currentDetailYear);
+}
+
+// ── EDIT RECORD ──
+function toLocalDT(iso) {
+  const d=new Date(iso), pad=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+
+function openEditRecordModal(id) {
+  const r = records.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById('editRecId').value    = r.id;
+  document.getElementById('editRecStart').value = toLocalDT(r.start);
+  document.getElementById('editRecEnd').value   = r.end ? toLocalDT(r.end) : '';
+  document.getElementById('editRecTour').value  = r.tour||'';
+  document.getElementById('editRecordModal').classList.add('open');
+}
+
+async function saveEditRecord() {
+  const id    = document.getElementById('editRecId').value;
+  const start = new Date(document.getElementById('editRecStart').value).toISOString();
+  const endV  = document.getElementById('editRecEnd').value;
+  const end   = endV ? new Date(endV).toISOString() : null;
+  const tour  = document.getElementById('editRecTour').value.trim();
+  const duration = end ? Math.round((new Date(end)-new Date(start))/60000) : null;
+  const r = records.find(x=>x.id===id);
+  await setDoc(doc(db,'records',id), {...r, start, end, tour, duration, date:start.slice(0,10)});
+  closeModal('editRecordModal');
+  showToast('✅ Eintrag aktualisiert');
+  if(currentDetailEmp) openDetail(currentDetailEmp, currentDetailMonth, currentDetailYear);
+}
+
+async function deleteRecord(id) {
+  if(!confirm('Eintrag löschen?')) return;
+  await deleteDoc(doc(db,'records',id));
+  showToast('Eintrag gelöscht','error');
+  if(currentDetailEmp) openDetail(currentDetailEmp, currentDetailMonth, currentDetailYear);
+}
+
+// ── MODAL ──
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── EXPORT ──
+function getEmpData(empId, month, year) {
+  const emp = employees.find(e=>e.id===empId);
+  const filtered = records.filter(r => { const d=new Date(r.date); return r.empId===empId && d.getMonth()+1===month && d.getFullYear()===year && r.end; }).sort((a,b)=>new Date(a.start)-new Date(b.start));
+  return { emp, filtered };
+}
+
+function exportEmpExcel() {
+  const { emp, filtered } = getEmpData(currentDetailEmp, currentDetailMonth, currentDetailYear);
+  const months=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const total = filtered.reduce((s,r)=>s+(r.duration||0),0);
+  const rows = filtered.map(r=>({'Datum':new Date(r.start).toLocaleDateString('de-DE'),'Tag':new Date(r.start).toLocaleDateString('de-DE',{weekday:'long'}),'Beginn':new Date(r.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),'Ende':new Date(r.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),'Dauer':formatDur(r.duration||0),'Tour':r.tour||''}));
+  rows.push({'Datum':'GESAMT','Tag':'','Beginn':'','Ende':'','Dauer':formatDur(total),'Tour':filtered.length+' Schichten'});
+  const ws=XLSX.utils.json_to_sheet(rows), wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,emp.first+' '+emp.last);
+  XLSX.writeFile(wb,`${emp.last}_${emp.first}_${months[currentDetailMonth-1]}_${currentDetailYear}.xlsx`);
+  showToast('📊 Excel exportiert');
+}
+
+function exportEmpPDF() {
+  const {jsPDF}=window.jspdf;
+  const { emp, filtered } = getEmpData(currentDetailEmp, currentDetailMonth, currentDetailYear);
+  const months=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const total = filtered.reduce((s,r)=>s+(r.duration||0),0);
+  const d=new jsPDF();
+  d.setFontSize(14); d.setFont('helvetica','bold');
+  d.text('N&S Transport – Arbeitszeitnachweis',14,16);
+  d.setFontSize(11); d.setFont('helvetica','normal');
+  d.text(`${emp.first} ${emp.last}  |  ${months[currentDetailMonth-1]} ${currentDetailYear}  |  ${emp.role||''}`,14,24);
+  d.text(`Gesamt: ${formatDur(total)} (${filtered.length} Schichten)`,14,31);
+  d.autoTable({startY:38,head:[['Datum','Tag','Von','Bis','Dauer','Tour']],body:filtered.map(r=>[new Date(r.start).toLocaleDateString('de-DE'),new Date(r.start).toLocaleDateString('de-DE',{weekday:'short'}),new Date(r.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),new Date(r.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),formatDur(r.duration||0),r.tour||'-']),foot:[['GESAMT','','','',formatDur(total),filtered.length+' Sch.']],styles:{fontSize:9},headStyles:{fillColor:[245,166,35],textColor:0},footStyles:{fillColor:[220,220,220],fontStyle:'bold'}});
+  d.save(`${emp.last}_${emp.first}_${months[currentDetailMonth-1]}_${currentDetailYear}.pdf`);
+  showToast('📄 PDF exportiert');
+}
+
+function exportAllExcel() {
+  const month=parseInt(document.getElementById('reportMonth').value);
+  const year=parseInt(document.getElementById('reportYear').value);
+  const months=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const wb=XLSX.utils.book_new();
+  employees.forEach(emp=>{
+    const {filtered}=getEmpData(emp.id,month,year);
+    const total=filtered.reduce((s,r)=>s+(r.duration||0),0);
+    const rows=filtered.map(r=>({'Datum':new Date(r.start).toLocaleDateString('de-DE'),'Tag':new Date(r.start).toLocaleDateString('de-DE',{weekday:'short'}),'Beginn':new Date(r.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),'Ende':new Date(r.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),'Dauer':formatDur(r.duration||0),'Tour':r.tour||''}));
+    rows.push({'Datum':'GESAMT','Tag':'','Beginn':'','Ende':'','Dauer':formatDur(total),'Tour':filtered.length+' Schichten'});
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),(emp.last+'_'+emp.first).substring(0,31));
+  });
+  XLSX.writeFile(wb,`NS_Transport_${months[month-1]}_${year}.xlsx`);
+  showToast('📊 Excel exportiert');
+}
+
+function exportAllPDF() {
+  const {jsPDF}=window.jspdf;
+  const month=parseInt(document.getElementById('reportMonth').value);
+  const year=parseInt(document.getElementById('reportYear').value);
+  const months=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const d=new jsPDF(); let first=true;
+  employees.forEach(emp=>{
+    if(!first) d.addPage(); first=false;
+    const {filtered}=getEmpData(emp.id,month,year);
+    const total=filtered.reduce((s,r)=>s+(r.duration||0),0);
+    d.setFontSize(13); d.setFont('helvetica','bold');
+    d.text('N&S Transport – Arbeitszeitnachweis',14,14);
+    d.setFontSize(10); d.setFont('helvetica','normal');
+    d.text(`${emp.first} ${emp.last} (${emp.role||'Mitarbeiter'})  |  ${months[month-1]} ${year}  |  ${formatDur(total)}`,14,22);
+    d.autoTable({startY:28,head:[['Datum','Tag','Von','Bis','Dauer','Tour']],body:filtered.length?filtered.map(r=>[new Date(r.start).toLocaleDateString('de-DE'),new Date(r.start).toLocaleDateString('de-DE',{weekday:'short'}),new Date(r.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),new Date(r.end).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),formatDur(r.duration||0),r.tour||'-']):[['Keine Einträge','','','','','']],foot:filtered.length?[['GESAMT','','','',formatDur(total),filtered.length+' Sch.']]:[],styles:{fontSize:8},headStyles:{fillColor:[245,166,35],textColor:0},footStyles:{fillColor:[220,220,220],fontStyle:'bold'}});
+  });
+  d.save(`NS_Transport_${months[month-1]}_${year}_Alle.pdf`);
+  showToast('📄 PDF exportiert');
+}
+
+// ── UTILS ──
+function formatDur(min) {
+  if(!min) return '0:00 Std';
+  return Math.floor(min/60)+':'+String(min%60).padStart(2,'0')+' Std';
+}
+
+// ── INIT ──
+initMonthSelectors();
+
+// ── GLOBAL EXPORTS ──
+window.switchTab=switchTab;
+window.onEmployeeChange=onEmployeeChange;
+window.onTourSelectChange=onTourSelectChange;
+window.doCheckin=doCheckin;
+window.doCheckout=doCheckout;
+window.openAddEmpModal=openAddEmpModal;
+window.addEmployee=addEmployee;
+window.deleteEmployee=deleteEmployee;
+window.openEditEmpModal=openEditEmpModal;
+window.saveEditEmp=saveEditEmp;
+window.openAddTourModal=openAddTourModal;
+window.addTour=addTour;
+window.deleteTour=deleteTour;
+window.openEditTourModal=openEditTourModal;
+window.saveEditTour=saveEditTour;
+window.renderReports=renderReports;
+window.openDetail=openDetail;
+window.openEditRecordModal=openEditRecordModal;
+window.saveEditRecord=saveEditRecord;
+window.deleteRecord=deleteRecord;
+window.closeModal=closeModal;
+window.exportEmpExcel=exportEmpExcel;
+window.exportEmpPDF=exportEmpPDF;
+window.exportAllExcel=exportAllExcel;
+window.exportAllPDF=exportAllPDF;
+window.openAdminLogin=openAdminLogin;
+window.doAdminLogin=doAdminLogin;
+</script>
+</body>
+</html>
