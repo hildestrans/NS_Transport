@@ -140,14 +140,15 @@ input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
     </section>
 
     <section class="panel">
-      <h2>Einträge</h2>
+      <h2>Monatsliste</h2>
       <div class="row">
-        <label>Fahrer<select id="flDriver"></select></label>
-        <label>Von<input id="flFrom" type="date"></label>
-        <label>Bis<input id="flTo" type="date"></label>
-        <button id="btnPlan" style="flex:0 0 auto">Touren automatisch eintragen</button>
-        <button class="primary" id="btnExport" style="flex:0 0 auto">Excel exportieren</button>
+        <label>Monat<select id="flMon"></select></label>
+        <label>Jahr<select id="flYear"></select></label>
+        <label style="flex-basis:220px">Fahrer<select id="flDriver"></select></label>
+        <button class="primary" id="btnExport" style="flex:0 0 auto">Excel erstellen</button>
       </div>
+      <input id="flFrom" type="hidden"><input id="flTo" type="hidden">
+      <div class="sub" style="margin-top:6px">Fahrer wählen: Die Excel-Liste wird sofort erstellt. „Alle Fahrer“ erstellt eine Datei mit einem Blatt je Fahrer.</div>
       <div class="msg" id="planMsg"></div>
       <div class="stats" id="stats"></div>
       <div id="openBox" hidden>
@@ -155,12 +156,15 @@ input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
         <div class="sub" style="margin-bottom:6px">Antippen, dann nur noch den Fahrer wählen.</div>
         <div class="chips" id="openList"></div>
       </div>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>Datum</th><th>Tag</th><th>Fahrer</th><th>Art</th><th>Tour</th><th>Beginn</th><th>Pause</th><th>Ende</th><th>Std.</th><th>Notiz</th><th></th></tr></thead>
-          <tbody id="entryBody"></tbody>
-        </table>
-      </div>
+      <details class="entries" style="margin-top:12px">
+        <summary class="sub" style="cursor:pointer">Einträge des Monats anzeigen und korrigieren</summary>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Datum</th><th>Tag</th><th>Fahrer</th><th>Art</th><th>Tour</th><th>Beginn</th><th>Pause</th><th>Ende</th><th>Std.</th><th>Notiz</th><th></th></tr></thead>
+            <tbody id="entryBody"></tbody>
+          </table>
+        </div>
+      </details>
     </section>
   </div>
 </div>
@@ -237,16 +241,17 @@ $("fTour").onsubmit=e=>{e.preventDefault();const n=$("tourName").value.trim();if
   $("tourName").value="";save();render();};
 
 // Automatisch eintragen: jede Tour mit Stammfahrer an ihren Wochentagen, außer bei Urlaub/Krank
-$("btnPlan").onclick=()=>{const f=$("flFrom").value,t=$("flTo").value;
-  if(!f||!t||t<f){$("planMsg").textContent="Bitte oben einen gültigen Zeitraum (Von/Bis) wählen.";return;}
-  let n=0,skip=0;
+// Touren eines Monats einmalig automatisch eintragen (gelöschte Einträge kommen nicht wieder)
+const MON=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+function autoPlanMonth(){const f=$("flFrom").value,t=$("flTo").value,ym=f.slice(0,7);
+  db.planned=db.planned||[];if(db.planned.includes(ym))return;
   eachDay(f,t,(ds,wd)=>db.tours.forEach(tr=>{
     const v=tw(tr,wd,ds);
-    if(!v.driver||!plannedOn(tr,ds,wd)||tourEntry(tr,ds))return;
-    if(absent(v.driver,ds)){skip++;return;}
-    db.entries.push({id:uid(),driver:v.driver,date:ds,type:"Tour",tourId:tr.id,tour:tr.name,start:v.start,pause:v.pause||"",end:v.end,note:""});n++;}));
-  save();render();
-  $("planMsg").textContent=n+" Tour(en) eingetragen ("+de(f)+" bis "+de(t)+")."+(skip?" "+skip+" Tour(en) unbesetzt wegen Urlaub/Krank.":"");};
+    if(!v.driver||!plannedOn(tr,ds,wd)||tourEntry(tr,ds)||absent(v.driver,ds))return;
+    db.entries.push({id:uid(),driver:v.driver,date:ds,type:"Tour",tourId:tr.id,tour:tr.name,start:v.start,pause:v.pause||"",end:v.end,note:""});}));
+  db.planned.push(ym);save();}
+function setPeriod(){const y=+$("flYear").value,m=+$("flMon").value;
+  $("flFrom").value=iso(new Date(y,m,1));$("flTo").value=iso(new Date(y,m+1,0));autoPlanMonth();$("planMsg").textContent="";render();}
 // Werte einer Tour an einem Wochentag (Abweichungen je Tag haben Vorrang)
 function stammAm(t,ds){let d=t.driver||"";if(ds&&t.hist)t.hist.filter(h=>h.from<=ds).sort((a,b)=>a.from.localeCompare(b.from)).forEach(h=>d=h.driver);return d;}
 function tw(t,wd,ds){const o=(t.wd&&t.wd[wd])||{};return {driver:o.driver||stammAm(t,ds),start:o.start||t.start,end:o.end||t.end,pause:o.pause!==undefined?o.pause:(t.pause||"")};}
@@ -352,17 +357,19 @@ function render(){
   $("openCount").textContent="("+open.length+")";
   $("openList").innerHTML=open.slice(0,40).map(o=>`<button type="button" onclick="fillSlot('${o.ds}','${o.tr.id}')">${WD[parse(o.ds).getDay()]} ${de(o.ds).slice(0,6)} · ${esc(o.tr.name)}</button>`).join("")+(open.length>40?`<span class="sub">… und ${open.length-40} weitere</span>`:"");
 }
-["flDriver","flFrom","flTo"].forEach(i=>$(i).onchange=render);
+["flMon","flYear"].forEach(i=>$(i).onchange=setPeriod);
+$("flDriver").onchange=()=>{render();if($("flDriver").value)$("btnExport").click();};
 
 // Excel: ein Sheet je Fahrer
 $("btnExport").onclick=()=>{
   if(typeof XLSX==="undefined"){showErr("Excel konnte nicht geladen werden. Bitte Internetverbindung prüfen und die Seite neu laden.");return;}
   try{
+  autoPlanMonth();render();
   const rowsAll=filtered(); const wb=XLSX.utils.book_new();
   const drivers=$("flDriver").value?db.drivers.filter(d=>d.id===$("flDriver").value):db.drivers;
   const f=$("flFrom").value,t=$("flTo").value;
-  const zeitraum=(f?de(f):"Anfang")+" – "+(t?de(t):"heute");
-  const summary=[["N&S Transport GbR – Übersicht"],["Zeitraum",zeitraum],[],["Fahrer","Tourtage","Std. Mo–Fr","Std. Samstag","Std. gesamt","Urlaubstage","Krankheitstage"]];
+  const monat=MON[+f.slice(5,7)-1]+" "+f.slice(0,4), zeitraum=monat+" ("+de(f)+" – "+de(t)+")";
+  const summary=[["N&S Transport GbR – Übersicht"],["Monat",zeitraum],[],["Fahrer","Tourtage","Std. Mo–Fr","Std. Samstag","Std. gesamt","Urlaubstage","Krankheitstage"]];
   const used=new Set();
   drivers.forEach(d=>{
     const rows=rowsAll.filter(r=>r.driver===d.id);
@@ -370,7 +377,7 @@ $("btnExport").onclick=()=>{
     const HEAD=["Datum","Wochentag","Art","Tour","Beginn","Pause","Ende","Stunden","Notiz"];
     const sumOf=list=>list.filter(r=>r.type==="Tour").reduce((s,r)=>s+hours(r.start,r.end,r.pause),0);
     const line=r=>[parse(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,pz(r.pause),r.end,r.type==="Tour"?hm(hours(r.start,r.end,r.pause)):"",[feiertag(r.date),r.note].filter(Boolean).join(", ")];
-    const aoa=[["Fahrer",full(d)],["Zeitraum",zeitraum],[]];
+    const aoa=[["N&S Transport GbR – Arbeitszeitnachweis"],["Fahrer",full(d)],["Monat",zeitraum],[]];
     const sat=rows.filter(r=>parse(r.date).getDay()===6), wk=rows.filter(r=>!sat.includes(r));
     let sumWk=0,sumSa=0;
     if(sat.length){
@@ -392,7 +399,10 @@ $("btnExport").onclick=()=>{
   const ws0=XLSX.utils.aoa_to_sheet(summary); ws0["!cols"]=[{wch:26},{wch:10},{wch:11},{wch:12},{wch:11},{wch:12},{wch:14}];
   XLSX.utils.book_append_sheet(wb,ws0,"Übersicht");
   wb.SheetNames.unshift(wb.SheetNames.pop());
-  saveXlsx(wb,"Einsatzplan_"+(f||"start")+"_bis_"+(t||iso(new Date()))+".xlsx");
+  const single=drivers.length===1;
+  if(single){wb.SheetNames.splice(wb.SheetNames.indexOf("Übersicht"),1);delete wb.Sheets["Übersicht"];}
+  const fn=(single?"Arbeitszeit_"+drivers[0].name:"Einsatzplan_alle_Fahrer")+"_"+monat;
+  saveXlsx(wb,fn.replace(/[^\wäöüÄÖÜß\- ]/g,"").replace(/\s+/g,"_")+".xlsx");
   }catch(err){showErr("Excel-Export fehlgeschlagen: "+errText(err)+(err&&err.stack?" | "+String(err.stack).split("\n").slice(0,2).join(" "):""));}
 };
 function showErr(t){const m=$("planMsg");m.style.color="var(--krank)";m.textContent=t;try{m.scrollIntoView({behavior:"smooth",block:"center"});}catch(x){}}
@@ -544,8 +554,11 @@ if(!db.seeded7){mergeDrivers([{anrede:"Herr",name:"Hamed Mohammadi",tours:[]}]);
 // Start: aktueller Monat
 const now=new Date();
 $("eFrom").value=iso(now);
-$("flFrom").value=iso(new Date(now.getFullYear(),now.getMonth(),1));
-$("flTo").value=iso(new Date(now.getFullYear(),now.getMonth()+1,0));
+$("flMon").innerHTML=MON.map((m,i)=>`<option value="${i}">${m}</option>`).join("");
+$("flYear").innerHTML=[0,1,2,3].map(k=>now.getFullYear()-1+k).map(y=>`<option>${y}</option>`).join("");
+$("flMon").value=now.getMonth();$("flYear").value=now.getFullYear();
+$("flFrom").value=iso(new Date(now.getFullYear(),now.getMonth(),1));$("flTo").value=iso(new Date(now.getFullYear(),now.getMonth()+1,0));
+autoPlanMonth();
 render();
 </script>
 </body>
