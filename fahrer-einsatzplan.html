@@ -448,6 +448,16 @@ if(!db.seeded5){mergeDrivers([{anrede:"Herr",name:"Rene Szolnoki",tours:[
     {name:"6745",start:"07:00",end:"08:30",days:[6]},
     {name:"3109",start:"11:00",end:"13:45",days:[6]}]}]);
   db.seeded5=true;save();}
+if(!db.seeded6){mergeDrivers([{anrede:"Herr",name:"Saman",tours:[
+    {name:"318 P Teil 2",start:"14:30",end:"15:00",days:[1,3,4]}]}]);
+  const sam=db.drivers.find(d=>d.name==="Saman"),rej=db.drivers.find(d=>d.name==="Rejhan Kadife");
+  if(!sam.anrede)sam.anrede="Herr";
+  const t617=db.tours.find(t=>t.name==="617 P");
+  if(t617&&rej){t617.driver=sam.id;t617.start="16:00";t617.end="18:00";t617.days=[1,3,4,5];t617.wd={5:{driver:rej.id,end:"18:30"}};}
+  eachDay("2026-11-16","2026-11-27",(ds,wd)=>{if(wd>0&&wd<6&&!absent(sam.id,ds)){
+    db.entries=db.entries.filter(x=>!(x.driver===sam.id&&x.date===ds&&x.type==="Tour"));
+    db.entries.push({id:uid(),driver:sam.id,date:ds,type:"Urlaub",tour:"",start:"",pause:"",end:"",note:""});}});
+  db.seeded6=true;save();}
 
 // Start: aktueller Monat
 const now=new Date();
