@@ -6,6 +6,7 @@
 <title>Fahrer-Einsatzplan N&amp;S</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>if(typeof XLSX==="undefined")document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');</script>
 <style>
 /* Layout: Arbeitsfläche mit Stammdaten links, Einträge rechts; auf dem Handy untereinander */
 :root{
@@ -355,7 +356,8 @@ function render(){
 
 // Excel: ein Sheet je Fahrer
 $("btnExport").onclick=()=>{
-  if(typeof XLSX==="undefined"){alert("Excel-Bibliothek nicht geladen. Bitte Internetverbindung prüfen.");return;}
+  if(typeof XLSX==="undefined"){showErr("Excel konnte nicht geladen werden. Bitte Internetverbindung prüfen und die Seite neu laden.");return;}
+  try{
   const rowsAll=filtered(); const wb=XLSX.utils.book_new();
   const drivers=$("flDriver").value?db.drivers.filter(d=>d.id===$("flDriver").value):db.drivers;
   const f=$("flFrom").value,t=$("flTo").value;
@@ -390,8 +392,18 @@ $("btnExport").onclick=()=>{
   const ws0=XLSX.utils.aoa_to_sheet(summary); ws0["!cols"]=[{wch:26},{wch:10},{wch:11},{wch:12},{wch:11},{wch:12},{wch:14}];
   XLSX.utils.book_append_sheet(wb,ws0,"Übersicht");
   wb.SheetNames.unshift(wb.SheetNames.pop());
-  XLSX.writeFile(wb,"Einsatzplan_"+(f||"start")+"_bis_"+(t||iso(new Date()))+".xlsx");
+  saveXlsx(wb,"Einsatzplan_"+(f||"start")+"_bis_"+(t||iso(new Date()))+".xlsx");
+  }catch(err){showErr("Excel-Export fehlgeschlagen: "+err.message);}
 };
+function showErr(t){const m=$("planMsg");m.style.color="var(--krank)";m.textContent=t;m.scrollIntoView({behavior:"smooth",block:"center"});}
+function saveXlsx(wb,name){
+  const data=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  const blob=new Blob([data],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=name;a.style.display="none";document.body.appendChild(a);a.click();
+  setTimeout(()=>a.remove(),1000);
+  const m=$("planMsg");m.style.color="";m.innerHTML="Excel erstellt: <b>"+esc(name)+"</b> (Ordner „Downloads“). Kein Download? <a id=\"dlLink\" href=\""+url+"\" download=\""+esc(name)+"\">Hier antippen</a>";
+  m.scrollIntoView({behavior:"smooth",block:"center"});}
 
 // Sicherung
 $("btnBackup").onclick=()=>{const a=document.createElement("a");
@@ -455,7 +467,7 @@ function parseWorkbook(wb){const people=[];
     return {name:t.name,start:k[0],end:k[1],pause:k[2]||"",days:t.days.size?[...t.days].sort():DEFDAYS.slice()};})})).filter(p=>p.tours.length||p.name);}
 $("btnImport").onclick=()=>$("fileImport").click();
 $("fileImport").onchange=async e=>{
-  if(typeof XLSX==="undefined"){alert("Excel-Bibliothek nicht geladen. Bitte Internetverbindung prüfen.");return;}
+  if(typeof XLSX==="undefined"){showErr("Excel-Bibliothek nicht geladen. Bitte Internetverbindung prüfen.");return;}
   let all=[];
   for(const fl of e.target.files){try{const wb=XLSX.read(await fl.arrayBuffer(),{type:"array"});all=all.concat(parseWorkbook(wb));}catch(x){}}
   e.target.value="";
