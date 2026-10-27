@@ -81,7 +81,7 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 16</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 17</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -330,21 +330,27 @@ const dname=id=>{const d=db.drivers.find(d=>d.id===id);return d?full(d):"?";};
 
 // Übersicht: wer hat welche Touren gefahren
 function renderOverview(rows){const dr=$("flDriver").value,box=$("overview");
+  const isSa=x=>parse(x.date).getDay()===6;
+  const tags=list=>{const cnt={};list.filter(x=>x.type==="Tour").forEach(x=>cnt[x.tour]=(cnt[x.tour]||0)+1);
+    return Object.entries(cnt).sort((a,b)=>a[0].localeCompare(b[0],"de",{numeric:true})).map(([n,c])=>`<span class="tag">${esc(n)} <span class="times">×${c}</span></span>`).join(" ");};
+  const hsum=list=>list.reduce((s,x)=>s+entH(x),0);
   if(!dr){
-    const list=db.drivers.map(d=>{const r=rows.filter(x=>x.driver===d.id),t=r.filter(x=>x.type==="Tour");
-      const cnt={};t.forEach(x=>cnt[x.tour]=(cnt[x.tour]||0)+1);
-      return {d,t,cnt,days:new Set(t.map(x=>x.date)).size,h:r.reduce((s,x)=>s+entH(x),0),
-        u:r.filter(x=>x.type==="Urlaub").length,k:r.filter(x=>x.type==="Krank").length};}).filter(o=>o.t.length||o.u||o.k);
-    box.innerHTML=list.length?`<table class="ov"><thead><tr><th>Fahrer</th><th>Gefahrene Touren (Anzahl Tage)</th><th>Arbeitstage</th><th>Stunden</th><th>Urlaub</th><th>Krank</th></tr></thead><tbody>
-      ${list.map(o=>`<tr class="pick" onclick="pickDriver('${o.d.id}')"><td><b>${esc(full(o.d))}</b></td><td class="wrap">${Object.entries(o.cnt).sort((a,b)=>a[0].localeCompare(b[0],"de",{numeric:true})).map(([n,c])=>`<span class="tag">${esc(n)} <span class="times">×${c}</span></span>`).join(" ")}</td><td>${o.days}</td><td>${fmtH(o.h)}</td><td>${o.u||""}</td><td>${o.k||""}</td></tr>`).join("")}
-      </tbody></table><div class="sub" style="margin-top:4px">Fahrer antippen für seine Tage im Einzelnen.</div>`:'<div class="empty">In diesem Monat ist noch nichts eingetragen.</div>';
+    const list=db.drivers.map(d=>{const r=rows.filter(x=>x.driver===d.id),wk=r.filter(x=>!isSa(x)),sa=r.filter(isSa);
+      return {d,r,wk,sa,days:new Set(r.filter(x=>x.type==="Tour").map(x=>x.date)).size,
+        u:r.filter(x=>x.type==="Urlaub").length,k:r.filter(x=>x.type==="Krank").length};}).filter(o=>o.r.length);
+    box.innerHTML=list.length?`<table class="ov"><thead><tr><th>Fahrer</th><th>Touren Montag bis Freitag</th><th>Std. Mo–Fr</th><th>Touren Samstag</th><th>Std. Sa</th><th>Gesamt</th><th>Tage</th><th>U</th><th>K</th></tr></thead><tbody>
+      ${list.map(o=>`<tr class="pick" onclick="pickDriver('${o.d.id}')"><td><b>${esc(full(o.d))}</b></td><td class="wrap">${tags(o.wk)}</td><td>${fmtH(hsum(o.wk))}</td><td class="wrap">${tags(o.sa)||'<span class="times">–</span>'}</td><td>${o.sa.length?fmtH(hsum(o.sa)):""}</td><td><b>${fmtH(hsum(o.r))}</b></td><td>${o.days}</td><td>${o.u||""}</td><td>${o.k||""}</td></tr>`).join("")}
+      </tbody></table><div class="sub" style="margin-top:4px">Fahrer antippen für seine Tage im Einzelnen. U = Urlaubstage, K = Krankheitstage.</div>`:'<div class="empty">In diesem Monat ist noch nichts eingetragen.</div>';
     return;}
-  const r=rows.filter(x=>x.driver===dr),dates=[...new Set(r.map(x=>x.date))].sort();
-  box.innerHTML=dates.length?`<table class="ov"><thead><tr><th>Datum</th><th>Tag</th><th>Touren</th><th>Stunden</th><th>Bemerkung</th></tr></thead><tbody>
-    ${dates.map(ds=>{const day=r.filter(x=>x.date===ds).sort((a,b)=>(a.start||"").localeCompare(b.start||""));const t=day.filter(isWork);
+  const r=rows.filter(x=>x.driver===dr);
+  const dayTable=(title,list)=>{const dates=[...new Set(list.map(x=>x.date))].sort();if(!dates.length)return "";
+    return `<h2 style="margin-top:12px">${title}</h2><table class="ov"><thead><tr><th>Datum</th><th>Tag</th><th>Touren</th><th>Stunden</th><th>Bemerkung</th></tr></thead><tbody>
+    ${dates.map(ds=>{const day=list.filter(x=>x.date===ds).sort((a,b)=>(a.type==="Extra"?"99":a.start||"").localeCompare(b.type==="Extra"?"99":b.start||""));const t=day.filter(isWork);
       const bem=[...day.filter(x=>!isWork(x)).map(x=>x.type),feiertag(ds),...day.map(x=>x.note)].filter(Boolean).join(", ");
-      return `<tr><td>${de(ds)}</td><td>${WD[parse(ds).getDay()]}</td><td class="wrap">${t.map(x=>`<span class="tag">${esc(x.tour)} <span class="times">${x.type==="Extra"?"+"+fmtH(entH(x)):x.start+"–"+x.end}</span></span>`).join(" ")}</td><td>${t.length?fmtH(t.reduce((s,x)=>s+entH(x),0)):""}</td><td>${esc(bem)}</td></tr>`;}).join("")}
-    </tbody></table>`:'<div class="empty">Für diesen Fahrer ist in diesem Monat nichts eingetragen.</div>';}
+      return `<tr><td>${de(ds)}</td><td>${WD[parse(ds).getDay()]}</td><td class="wrap">${t.map(x=>`<span class="tag">${esc(x.tour)} <span class="times">${x.type==="Extra"?"+"+fmtH(entH(x)):x.start+"–"+x.end}</span></span>`).join(" ")}</td><td>${t.length?fmtH(hsum(t)):""}</td><td>${esc(bem)}</td></tr>`;}).join("")}
+    <tr><td colspan="3" style="text-align:right"><b>Summe ${title}</b></td><td><b>${fmtH(hsum(list))}</b></td><td></td></tr></tbody></table>`;};
+  const wk=r.filter(x=>!isSa(x)),sa=r.filter(isSa);
+  box.innerHTML=r.length?dayTable("Montag bis Freitag",wk)+dayTable("Samstag",sa)+(sa.length?`<div class="stat" style="display:inline-block;margin-top:8px">Gesamt <b>${fmtH(hsum(r))}</b></div>`:""):'<div class="empty">Für diesen Fahrer ist in diesem Monat nichts eingetragen.</div>';}
 function pickDriver(id){$("flDriver").value=id;render();}
 const sortedTours=()=>db.tours.slice().sort((a,b)=>(a.start||"").localeCompare(b.start||"")||a.name.localeCompare(b.name,"de",{numeric:true}));
 function render(){
