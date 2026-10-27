@@ -81,7 +81,7 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 15</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 16</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -622,6 +622,12 @@ if(!db.seeded10){const ham=db.drivers.find(d=>d.name==="Hamed Mohammadi"),tah=db
     db.entries.push({id:uid(),driver:tah.id,date:"2026-11-30",type:"Extra",tour:"Zusatzzeit",start:"00:00",pause:"",end:"00:40",note:"Extra (2x20 Minuten) Mittwoch"});
     db.entries.push({id:uid(),driver:ham.id,date:"2026-12-31",type:"Extra",tour:"Zusatzzeit",start:"00:00",pause:"",end:"00:40",note:"Extra (2x20 Minuten) Mittwoch"});}
   db.seeded10=true;save();}
+// Herr Hamed ist Nachfolger von Frau Tahmasebi ab 01.09.2026 (Stundenzettel Nov. und Dez. auf Herrn Hamed)
+if(!db.seeded11){const ham=db.drivers.find(d=>d.name==="Hamed Mohammadi"),tah=db.drivers.find(d=>d.name==="Tahmasebi");
+  if(ham&&tah){["947","1140","1357","1646/1653","3008","3153"].forEach(n=>{const t=db.tours.find(t=>t.name===n);if(!t)return;
+      t.hist=(t.hist||[]).filter(h=>h.driver!==ham.id);t.hist.push({from:"2026-09-01",driver:ham.id});});
+    db.entries.forEach(e=>{if(e.driver===tah.id&&e.date>="2026-09-01")e.driver=ham.id;});}
+  db.seeded11=true;save();}
 
 // Start: aktueller Monat
 const now=new Date();
