@@ -287,11 +287,12 @@ function filtered(){const dr=$("flDriver").value,f=$("flFrom").value,t=$("flTo")
     .sort((a,b)=>a.date.localeCompare(b.date)||(a.start||"").localeCompare(b.start||""));}
 const dname=id=>{const d=db.drivers.find(d=>d.id===id);return d?full(d):"?";};
 
+const sortedTours=()=>db.tours.slice().sort((a,b)=>(a.start||"").localeCompare(b.start||"")||a.name.localeCompare(b.name,"de",{numeric:true}));
 function render(){
   $("driverList").innerHTML=db.drivers.map(d=>`<li><select class="small" style="flex:0 0 76px;padding:3px 4px;font-size:13px" aria-label="Anrede" onchange="setAnrede('${d.id}',this.value)">${["","Herr","Frau"].map(a=>`<option value="${a}"${(d.anrede||"")===a?" selected":""}>${a||"–"}</option>`).join("")}</select><span style="flex:1">${esc(d.name)}</span><button class="small" id="del-${d.id}" onclick="delDriver('${d.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Fahrer. Namen oben eintragen.</li>';
   const opts=db.drivers.map(d=>`<option value="${d.id}">${esc(full(d))}</option>`).join("");
   const dayTxt=t=>[1,2,3,4,5,6,0].filter(x=>tdays(t).includes(x)).map(x=>WD[x]).join(" ");
-  $("tourList").innerHTML=db.tours.map(t=>`<li style="flex-wrap:wrap"><span style="flex:1 1 100%">${esc(t.name)} <span class="times">${t.start}–${t.end}${pmin(t.pause)?" (Pause "+t.pause+")":""} · ${dayTxt(t)}</span></span>
+  $("tourList").innerHTML=sortedTours().map(t=>`<li style="flex-wrap:wrap"><span style="flex:1 1 100%">${esc(t.name)} <span class="times">${t.start}–${t.end}${pmin(t.pause)?" (Pause "+t.pause+")":""} · ${dayTxt(t)}</span></span>
     <select class="sel" aria-label="Stammfahrer" onchange="setTourDriver('${t.id}',this.value)"><option value="">– kein Stammfahrer –</option>${db.drivers.map(d=>`<option value="${d.id}"${t.driver===d.id?" selected":""}>${esc(full(d))}</option>`).join("")}</select>
     <button class="small" onclick="delTour('${t.id}')">Löschen</button>
     ${Object.entries(t.wd||{}).map(([w,o])=>`<span class="times" style="flex:1 1 100%">${WD[w]}: ${o.driver?esc(dname(o.driver))+" · ":""}${o.start||t.start}–${o.end||t.end} <button class="small" onclick="delWd('${t.id}',${w})" aria-label="Abweichung entfernen">×</button></span>`).join("")}
@@ -313,7 +314,7 @@ function render(){
   const tdcur=$("tourDriver").value; $("tourDriver").innerHTML='<option value="">– kein Stammfahrer –</option>'+opts; $("tourDriver").value=tdcur;
   const cur=$("eDriver").value; $("eDriver").innerHTML=opts; if(cur)$("eDriver").value=cur;
   const fcur=$("flDriver").value; $("flDriver").innerHTML='<option value="">Alle Fahrer</option>'+opts; $("flDriver").value=fcur;
-  const tcur=$("eTour").value; $("eTour").innerHTML=db.tours.map(t=>`<option value="${t.id}">${esc(t.name)} (${t.start}–${t.end})</option>`).join("");
+  const tcur=$("eTour").value; $("eTour").innerHTML=sortedTours().map(t=>`<option value="${t.id}">${esc(t.name)} (${t.start}–${t.end})</option>`).join("");
   if(tcur&&db.tours.some(t=>t.id===tcur))$("eTour").value=tcur; else $("eTour").onchange();
   const rows=filtered();
   $("entryBody").innerHTML=rows.map(e=>{const h=e.type==="Tour"?hours(e.start,e.end,e.pause):0;
