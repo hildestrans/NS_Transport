@@ -81,7 +81,7 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 13</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 14</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -220,8 +220,15 @@ function arbeitstag(drv,ds,wd){if(feiertag(ds))return false;
   const own=db.tours.filter(t=>[1,2,3,4,5,6,0].some(x=>tw(t,x,ds).driver===drv&&tdays(t).includes(x)));
   if(!own.length)return wd>=1&&wd<=5;
   return own.some(t=>tdays(t).includes(wd)&&tw(t,wd,ds).driver===drv);}
+const skipped=(tr,ds)=>(db.skips||[]).includes(tr.id+"|"+ds);
+// Plan wird immer aus den Stammtouren berechnet; gespeichert werden nur Ausnahmen
+function planned(tr,ds,wd){if(!plannedOn(tr,ds,wd)||tourEntry(tr,ds)||skipped(tr,ds))return null;
+  const v=tw(tr,wd,ds);if(!v.driver||absent(v.driver,ds))return null;
+  return {id:"v:"+tr.id+"|"+ds,virtual:true,driver:v.driver,date:ds,type:"Tour",tourId:tr.id,tour:tr.name,start:v.start,pause:v.pause||"",end:v.end,note:""};}
+function effEntries(f,t){const out=db.entries.filter(e=>e.date>=f&&e.date<=t);
+  eachDay(f,t,(ds,wd)=>db.tours.forEach(tr=>{const v=planned(tr,ds,wd);if(v)out.push(v);}));return out;}
 function openSlots(){const f=$("flFrom").value,t=$("flTo").value;if(!f||!t||t<f)return[];const out=[];
-  eachDay(f,t,(ds,wd)=>db.tours.forEach(tr=>{if(plannedOn(tr,ds,wd)&&!tourEntry(tr,ds))out.push({ds,tr});}));return out;}
+  eachDay(f,t,(ds,wd)=>db.tours.forEach(tr=>{if(plannedOn(tr,ds,wd)&&!tourEntry(tr,ds)&&!skipped(tr,ds)&&!planned(tr,ds,wd))out.push({ds,tr});}));return out;}
 function setTourDriver(id,v){const t=db.tours.find(t=>t.id===id);if(t){t.driver=v;save();render();}}
 function fillSlot(ds,tid){setType("Tour");$("eFrom").value=ds;$("eTour").value=tid;$("eTour").onchange();
   $("eNote").value="";$("fEntry").scrollIntoView({behavior:"smooth",block:"center"});$("eDriver").focus();
@@ -247,7 +254,7 @@ $("fTour").onsubmit=e=>{e.preventDefault();const n=$("tourName").value.trim();if
 // Automatisch eintragen: jede Tour mit Stammfahrer an ihren Wochentagen, außer bei Urlaub/Krank
 // Touren eines Monats einmalig automatisch eintragen (gelöschte Einträge kommen nicht wieder)
 const MON=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-function autoPlanMonth(){const f=$("flFrom").value,t=$("flTo").value,ym=f.slice(0,7);
+function autoPlanMonth(){return;const f=$("flFrom").value,t=$("flTo").value,ym=f.slice(0,7);
   db.planned=db.planned||[];if(db.planned.includes(ym))return;
   eachDay(f,t,(ds,wd)=>db.tours.forEach(tr=>{
     const v=tw(tr,wd,ds);
@@ -306,10 +313,10 @@ function msg(t){$("entryMsg").textContent=t;}
 function delDriver(id){if(db.entries.some(e=>e.driver===id)&&!$("del-"+id).dataset.armed){const b=$("del-"+id);b.dataset.armed=1;b.textContent="Wirklich? Einträge werden gelöscht";return;}
   db.drivers=db.drivers.filter(d=>d.id!==id);db.entries=db.entries.filter(e=>e.driver!==id);save();render();}
 function delTour(id){db.tours=db.tours.filter(t=>t.id!==id);save();render();}
-function delEntry(id){db.entries=db.entries.filter(e=>e.id!==id);save();render();}
+function delEntry(id){if(id.startsWith("v:")){db.skips=db.skips||[];db.skips.push(id.slice(2));}else db.entries=db.entries.filter(e=>e.id!==id);save();render();}
 
 function filtered(){const dr=$("flDriver").value,f=$("flFrom").value,t=$("flTo").value;
-  return db.entries.filter(e=>(!dr||e.driver===dr)&&(!f||e.date>=f)&&(!t||e.date<=t))
+  return effEntries(f,t).filter(e=>!dr||e.driver===dr)
     .sort((a,b)=>a.date.localeCompare(b.date)||(a.start||"").localeCompare(b.start||""));}
 const dname=id=>{const d=db.drivers.find(d=>d.id===id);return d?full(d):"?";};
 
@@ -591,6 +598,12 @@ if(!db.seeded8){const ham=db.drivers.find(d=>d.name==="Hamed Mohammadi"),tah=db.
       if(t){t.hist=(t.hist||[]).filter(h=>!(h.driver===ham.id));t.hist.push({from:"2026-09-01",driver:ham.id});}});
     db.entries.forEach(e=>{if(e.driver===tah.id&&e.date>="2026-09-01")e.driver=ham.id;});}
   db.seeded8=true;save();}
+// Bereits gespeicherte Planeinträge, die genau dem Stammplan entsprechen, entfernen (werden jetzt berechnet)
+if(!db.seeded9){db.entries=db.entries.filter(e=>{if(e.type!=="Tour"||e.note)return true;
+    const tr=db.tours.find(t=>e.tourId?t.id===e.tourId:t.name===e.tour);if(!tr)return true;
+    const wd=parse(e.date).getDay();if(!plannedOn(tr,e.date,wd))return true;const v=tw(tr,wd,e.date);
+    return !(v.driver===e.driver&&v.start===e.start&&v.end===e.end&&(v.pause||"")===(e.pause||""));});
+  db.seeded9=true;save();}
 
 // Start: aktueller Monat
 const now=new Date();
