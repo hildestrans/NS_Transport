@@ -81,7 +81,7 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 17</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 18</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -634,6 +634,14 @@ if(!db.seeded11){const ham=db.drivers.find(d=>d.name==="Hamed Mohammadi"),tah=db
       t.hist=(t.hist||[]).filter(h=>h.driver!==ham.id);t.hist.push({from:"2026-09-01",driver:ham.id});});
     db.entries.forEach(e=>{if(e.driver===tah.id&&e.date>="2026-09-01")e.driver=ham.id;});}
   db.seeded11=true;save();}
+// Auch wenn Frau Tahmasebi gelöscht wurde: Touren gehören ab 01.09.2026 Herrn Hamed
+if(!db.seeded12){const ham=db.drivers.find(d=>/hamed/i.test(d.name));
+  if(ham)["947","1140","1357","1646/1653","3008","3153"].forEach(n=>{const t=db.tours.find(t=>t.name===n);if(!t)return;
+    t.hist=(t.hist||[]).filter(h=>h.driver!==ham.id&&db.drivers.some(d=>d.id===h.driver));t.hist.push({from:"2026-09-01",driver:ham.id});
+    if(!db.drivers.some(d=>d.id===t.driver))t.driver=ham.id;});
+  db.seeded12=true;save();}
+// Touren, deren Stammfahrer gelöscht wurde, gelten als ohne Stammfahrer
+db.tours.forEach(t=>{if(t.driver&&!db.drivers.some(d=>d.id===t.driver))t.driver="";if(t.hist)t.hist=t.hist.filter(h=>db.drivers.some(d=>d.id===h.driver));});
 
 // Start: aktueller Monat
 const now=new Date();
