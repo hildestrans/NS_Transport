@@ -132,7 +132,7 @@ input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
         <label id="lPause">Pause<input id="ePause" type="time"></label>
         <label id="lEnd">Ende<input id="eEnd" type="time"></label>
         <label style="flex-basis:100%">Notiz<input id="eNote" placeholder="optional"></label>
-        <label class="check" id="lSkip" hidden><input type="checkbox" id="eSkip" checked> Samstag und Sonntag auslassen</label>
+        <label class="check" id="lSkip" hidden><input type="checkbox" id="eSkip" checked> Nur Arbeitstage des Fahrers zählen (nach seinen Touren, ohne Feiertage)</label>
         <button class="primary" style="flex:0 0 auto">Eintrag speichern</button>
       </form>
       <div class="msg" id="entryMsg"></div>
@@ -206,6 +206,11 @@ function feiertage(y){if(_hol[y])return _hol[y];
     [off(50)]:"Pfingstmontag",[y+"-10-03"]:"Tag der Deutschen Einheit",[y+"-10-31"]:"Reformationstag",[y+"-12-25"]:"1. Weihnachtstag",[y+"-12-26"]:"2. Weihnachtstag"};}
 const feiertag=ds=>feiertage(+ds.slice(0,4))[ds]||"";
 const plannedOn=(t,ds,wd)=>tdays(t).includes(wd)&&(!t.created||ds>=t.created)&&!feiertag(ds);
+// Arbeitet der Fahrer an diesem Tag laut Stammtouren? Ohne eigene Touren: Mo–Fr
+function arbeitstag(drv,ds,wd){if(feiertag(ds))return false;
+  const own=db.tours.filter(t=>[1,2,3,4,5,6,0].some(x=>tw(t,x,ds).driver===drv&&tdays(t).includes(x)));
+  if(!own.length)return wd>=1&&wd<=5;
+  return own.some(t=>tdays(t).includes(wd)&&tw(t,wd,ds).driver===drv);}
 function openSlots(){const f=$("flFrom").value,t=$("flTo").value;if(!f||!t||t<f)return[];const out=[];
   eachDay(f,t,(ds,wd)=>db.tours.forEach(tr=>{if(plannedOn(tr,ds,wd)&&!tourEntry(tr,ds))out.push({ds,tr});}));return out;}
 function setTourDriver(id,v){const t=db.tours.find(t=>t.id===id);if(t){t.driver=v;save();render();}}
@@ -275,7 +280,7 @@ $("fEntry").onsubmit=e=>{e.preventDefault();
     const to=$("eTo").value||from; let d=parse(from),end=parse(to),n=0,freed=0;
     if(end<d){msg("Das Enddatum liegt vor dem Startdatum.");return;}
     while(d<=end){const wd=d.getDay();
-      if(!($("eSkip").checked&&(wd===0||wd===6))){
+      if(!$("eSkip").checked||arbeitstag(drv,iso(d),wd)){
         const ds=iso(d);
         const before=db.entries.length;
         db.entries=db.entries.filter(x=>!(x.driver===drv&&x.date===ds&&x.type==="Tour"));
@@ -364,7 +369,7 @@ $("btnExport").onclick=()=>{
     const sumOf=list=>list.filter(r=>r.type==="Tour").reduce((s,r)=>s+hours(r.start,r.end,r.pause),0);
     const line=r=>[parse(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,pz(r.pause),r.end,r.type==="Tour"?hm(hours(r.start,r.end,r.pause)):"",[feiertag(r.date),r.note].filter(Boolean).join(", ")];
     const aoa=[["Fahrer",full(d)],["Zeitraum",zeitraum],[]];
-    const sat=rows.filter(r=>parse(r.date).getDay()===6&&r.type==="Tour"), wk=rows.filter(r=>!sat.includes(r));
+    const sat=rows.filter(r=>parse(r.date).getDay()===6), wk=rows.filter(r=>!sat.includes(r));
     let sumWk=0,sumSa=0;
     if(sat.length){
       sumWk=sumOf(wk);sumSa=sumOf(sat);
