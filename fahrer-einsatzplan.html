@@ -80,6 +80,7 @@ th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
     <section class="panel">
       <h2>Fahrer</h2>
       <form id="fDriver" class="row">
+        <select id="driverAnrede" style="flex:0 0 90px" aria-label="Anrede"><option>Herr</option><option>Frau</option></select>
         <input id="driverName" placeholder="Name des Fahrers" required>
         <button class="primary" style="flex:0 0 auto">Hinzufügen</button>
       </form>
@@ -167,7 +168,9 @@ document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{
 // Fahrer
 $("fDriver").onsubmit=e=>{e.preventDefault();const n=$("driverName").value.trim();if(!n)return;
   if(db.drivers.some(d=>d.name.toLowerCase()===n.toLowerCase()))return;
-  db.drivers.push({id:uid(),name:n});$("driverName").value="";save();render();};
+  db.drivers.push({id:uid(),anrede:$("driverAnrede").value,name:n});$("driverName").value="";save();render();};
+const full=d=>((d.anrede?d.anrede+" ":"")+d.name);
+function setAnrede(id,v){const d=db.drivers.find(d=>d.id===id);if(d){d.anrede=v;save();render();}}
 // Touren
 $("fTour").onsubmit=e=>{e.preventDefault();const n=$("tourName").value.trim();if(!n)return;
   db.tours.push({id:uid(),name:n,start:$("tourStart").value,end:$("tourEnd").value});$("tourName").value="";save();render();};
@@ -204,12 +207,12 @@ function delEntry(id){db.entries=db.entries.filter(e=>e.id!==id);save();render()
 function filtered(){const dr=$("flDriver").value,f=$("flFrom").value,t=$("flTo").value;
   return db.entries.filter(e=>(!dr||e.driver===dr)&&(!f||e.date>=f)&&(!t||e.date<=t))
     .sort((a,b)=>a.date.localeCompare(b.date)||(a.start||"").localeCompare(b.start||""));}
-const dname=id=>(db.drivers.find(d=>d.id===id)||{}).name||"?";
+const dname=id=>{const d=db.drivers.find(d=>d.id===id);return d?full(d):"?";};
 
 function render(){
-  $("driverList").innerHTML=db.drivers.map(d=>`<li><span>${esc(d.name)}</span><button class="small" id="del-${d.id}" onclick="delDriver('${d.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Fahrer. Namen oben eintragen.</li>';
+  $("driverList").innerHTML=db.drivers.map(d=>`<li><select class="small" style="flex:0 0 76px;padding:3px 4px;font-size:13px" aria-label="Anrede" onchange="setAnrede('${d.id}',this.value)">${["","Herr","Frau"].map(a=>`<option value="${a}"${(d.anrede||"")===a?" selected":""}>${a||"–"}</option>`).join("")}</select><span style="flex:1">${esc(d.name)}</span><button class="small" id="del-${d.id}" onclick="delDriver('${d.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Fahrer. Namen oben eintragen.</li>';
   $("tourList").innerHTML=db.tours.map(t=>`<li><span>${esc(t.name)} <span class="times">${t.start}–${t.end}</span></span><button class="small" onclick="delTour('${t.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Touren. Name und Zeiten oben eintragen.</li>';
-  const opts=db.drivers.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
+  const opts=db.drivers.map(d=>`<option value="${d.id}">${esc(full(d))}</option>`).join("");
   const cur=$("eDriver").value; $("eDriver").innerHTML=opts; if(cur)$("eDriver").value=cur;
   const fcur=$("flDriver").value; $("flDriver").innerHTML='<option value="">Alle Fahrer</option>'+opts; $("flDriver").value=fcur;
   const tcur=$("eTour").value; $("eTour").innerHTML=db.tours.map(t=>`<option value="${t.id}">${esc(t.name)} (${t.start}–${t.end})</option>`).join("");
@@ -237,14 +240,14 @@ $("btnExport").onclick=()=>{
   const used=new Set();
   drivers.forEach(d=>{
     const rows=rowsAll.filter(r=>r.driver===d.id);
-    const aoa=[["Fahrer",d.name],["Zeitraum",zeitraum],[],["Datum","Wochentag","Art","Tour","Beginn","Ende","Stunden","Notiz"]];
+    const aoa=[["Fahrer",full(d)],["Zeitraum",zeitraum],[],["Datum","Wochentag","Art","Tour","Beginn","Ende","Stunden","Notiz"]];
     rows.forEach(r=>{const h=r.type==="Tour"?hours(r.start,r.end):"";
       aoa.push([parse(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,r.end,h,r.note]);});
     const tr=rows.filter(r=>r.type==="Tour");
     const sumH=Math.round(tr.reduce((s,r)=>s+hours(r.start,r.end),0)*100)/100;
     const days=new Set(tr.map(r=>r.date)).size, u=rows.filter(r=>r.type==="Urlaub").length, k=rows.filter(r=>r.type==="Krank").length;
     aoa.push([],["Summe Arbeitsstunden","","","","","",sumH],["Tourtage",days],["Urlaubstage",u],["Krankheitstage",k]);
-    summary.push([d.name,days,sumH,u,k]);
+    summary.push([full(d),days,sumH,u,k]);
     const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:"dd.mm.yyyy"});
     ws["!cols"]=[{wch:20},{wch:10},{wch:9},{wch:26},{wch:8},{wch:8},{wch:9},{wch:30}];
     let n=d.name.replace(/[\\\/\?\*\[\]:]/g,"").slice(0,31)||"Fahrer",base=n,i=2;
