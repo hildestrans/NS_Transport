@@ -78,7 +78,7 @@ input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 10</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 11</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -369,30 +369,41 @@ $("btnExport").onclick=()=>{
   const drivers=$("flDriver").value?db.drivers.filter(d=>d.id===$("flDriver").value):db.drivers;
   const f=$("flFrom").value,t=$("flTo").value;
   const monat=MON[+f.slice(5,7)-1]+" "+f.slice(0,4), zeitraum=monat+" ("+de(f)+" – "+de(t)+")";
-  const summary=[["N&S Transport GbR – Übersicht"],["Monat",zeitraum],[],["Fahrer","Tourtage","Std. Mo–Fr","Std. Samstag","Std. gesamt","Urlaubstage","Krankheitstage"]];
+  const summary=[["N&S Transport GbR – Übersicht"],["Monat",zeitraum],[],["Fahrer","Arbeitstage","Std. Mo–Fr","Std. Samstag","Std. gesamt","Urlaubstage","Krankheitstage"]];
   const used=new Set();
   drivers.forEach(d=>{
     const rows=rowsAll.filter(r=>r.driver===d.id);
+    if(!rows.length&&drivers.length>1)return;
     const hm=h=>({t:"n",v:Math.round(h*60)/1440,z:"[h]:mm"});
-    const HEAD=["Datum","Wochentag","Art","Tour","Beginn","Pause","Ende","Stunden","Notiz"];
+    const HEAD=["Kalendertag","Tag","Tour Nr.","Beginn (Uhrzeit)","Pause (Dauer)","Ende (Uhrzeit)","Dauer (Summe)","Bemerkungen"];
     const sumOf=list=>list.filter(r=>r.type==="Tour").reduce((s,r)=>s+hours(r.start,r.end,r.pause),0);
     const xd=ds=>{const [y,m,d]=ds.split("-").map(Number);return {t:"n",v:(Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/864e5,z:"dd\\.mm\\.yyyy"};};
-    const line=r=>[xd(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,pz(r.pause),r.end,r.type==="Tour"?hm(hours(r.start,r.end,r.pause)):"",[feiertag(r.date),r.note].filter(Boolean).join(", ")];
-    const aoa=[["N&S Transport GbR – Arbeitszeitnachweis"],["Fahrer",full(d)],["Monat",zeitraum],[]];
+    const KZ={Urlaub:"U: Urlaub",Krank:"K: Krank"};
+    // je Arbeitstag: Datum nur in der ersten Zeile, darunter die weiteren Touren
+    const block=list=>{const out=[];const dates=[...new Set(list.map(r=>r.date))].sort();
+      dates.forEach(ds=>{const dayRows=list.filter(r=>r.date===ds).sort((a,b)=>(a.start||"").localeCompare(b.start||""));
+        dayRows.forEach((r,i)=>{const first=i===0;
+          const bem=[r.type!=="Tour"?KZ[r.type]:"",first?feiertag(ds):"",r.note].filter(Boolean).join(", ");
+          out.push(r.type==="Tour"
+            ?[first?xd(ds):"",first?WD[parse(ds).getDay()]:"",r.tour,r.start,pmin(r.pause)?hm(pmin(r.pause)/60):"",r.end,hm(hours(r.start,r.end,r.pause)),bem]
+            :[first?xd(ds):"",first?WD[parse(ds).getDay()]:"","","","","","",bem]);});});
+      return out;};
+    const aoa=[["Vorlage zur Dokumentation der täglichen Arbeitszeit"],["Firma:","N&S Transport GbR"],["Name des Mitarbeiters:",full(d)],["Monat:",monat],[]];
     const sat=rows.filter(r=>parse(r.date).getDay()===6), wk=rows.filter(r=>!sat.includes(r));
-    let sumWk=0,sumSa=0;
+    let sumWk=sumOf(wk),sumSa=sumOf(sat);
     if(sat.length){
-      sumWk=sumOf(wk);sumSa=sumOf(sat);
-      aoa.push(["Montag bis Freitag"],HEAD,...wk.map(line),["Summe Montag bis Freitag","","","","","","",hm(sumWk)],[]);
-      aoa.push(["Samstag"],HEAD,...sat.map(line),["Summe Samstag","","","","","","",hm(sumSa)],[]);
-    }else{aoa.push(HEAD,...rows.map(line),[]);sumWk=sumOf(rows);}
+      aoa.push(["Montag bis Freitag"],HEAD,...block(wk),["","","","","","Summe:",hm(sumWk)],[]);
+      aoa.push(["Samstag"],HEAD,...block(sat),["","","","","","Summe:",hm(sumSa)],[]);
+    }else{aoa.push(HEAD,...block(rows),[]);}
     const tr=rows.filter(r=>r.type==="Tour");
     const sumH=sumWk+sumSa;
     const days=new Set(tr.map(r=>r.date)).size, u=rows.filter(r=>r.type==="Urlaub").length, k=rows.filter(r=>r.type==="Krank").length;
-    aoa.push(["Summe Arbeitsstunden gesamt","","","","","","",hm(sumH)],["Tourtage",days],["Urlaubstage",u],["Krankheitstage",k]);
+    aoa.push(["","","","","",sat.length?"Summe gesamt:":"Summe:",hm(sumH)],[],["Arbeitstage",days],["Urlaubstage",u],["Krankheitstage",k],[],[],
+      ["Datum","","Unterschrift des Arbeitnehmers","","","Unterschrift des Arbeitgebers"],[],
+      ["Kürzel in „Bemerkungen“: K = Krank, U = Urlaub, UU = Unbezahlter Urlaub"]);
     summary.push([full(d),days,hm(sumWk),hm(sumSa),hm(sumH),u,k]);
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"]=[{wch:26},{wch:10},{wch:9},{wch:26},{wch:8},{wch:7},{wch:8},{wch:9},{wch:30}];
+    ws["!cols"]=[{wch:22},{wch:5},{wch:12},{wch:15},{wch:13},{wch:14},{wch:14},{wch:28}];
     let n=d.name.replace(/[\\\/\?\*\[\]:]/g,"").slice(0,31)||"Fahrer",base=n,i=2;
     while(used.has(n)){n=base.slice(0,28)+" "+i++;} used.add(n);
     XLSX.utils.book_append_sheet(wb,ws,n);
