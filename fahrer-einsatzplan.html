@@ -178,8 +178,8 @@ const parse=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);
 const de=s=>{const [y,m,d]=s.split("-");return d+"."+m+"."+y;};
 const pmin=p=>{const m=String(p||"").match(/(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:0;};
 const pz=p=>pmin(p)?p:"";
-function hours(a,b,p){if(!a||!b)return 0;const[h1,m1]=a.split(":").map(Number),[h2,m2]=b.split(":").map(Number);let t=(h2*60+m2)-(h1*60+m1);if(t<0)t+=1440;t=Math.max(0,t-pmin(p));return Math.round(t/60*100)/100;}
-const fmtH=h=>h.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2});
+function hours(a,b,p){if(!a||!b)return 0;const[h1,m1]=a.split(":").map(Number),[h2,m2]=b.split(":").map(Number);let t=(h2*60+m2)-(h1*60+m1);if(t<0)t+=1440;t=Math.max(0,t-pmin(p));return t/60;}
+const fmtH=h=>{const m=Math.round(h*60);return Math.floor(m/60)+":"+String(m%60).padStart(2,"0");};
 
 let type="Tour";
 function setType(tp){
@@ -355,25 +355,34 @@ $("btnExport").onclick=()=>{
   const drivers=$("flDriver").value?db.drivers.filter(d=>d.id===$("flDriver").value):db.drivers;
   const f=$("flFrom").value,t=$("flTo").value;
   const zeitraum=(f?de(f):"Anfang")+" – "+(t?de(t):"heute");
-  const summary=[["N&S Transport GbR – Übersicht"],["Zeitraum",zeitraum],[],["Fahrer","Tourtage","Arbeitsstunden","Urlaubstage","Krankheitstage"]];
+  const summary=[["N&S Transport GbR – Übersicht"],["Zeitraum",zeitraum],[],["Fahrer","Tourtage","Std. Mo–Fr","Std. Samstag","Std. gesamt","Urlaubstage","Krankheitstage"]];
   const used=new Set();
   drivers.forEach(d=>{
     const rows=rowsAll.filter(r=>r.driver===d.id);
-    const aoa=[["Fahrer",full(d)],["Zeitraum",zeitraum],[],["Datum","Wochentag","Art","Tour","Beginn","Pause","Ende","Stunden","Notiz"]];
-    rows.forEach(r=>{const h=r.type==="Tour"?hours(r.start,r.end,r.pause):"";
-      aoa.push([parse(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,pz(r.pause),r.end,h,[feiertag(r.date),r.note].filter(Boolean).join(", ")]);});
+    const hm=h=>({t:"n",v:Math.round(h*60)/1440,z:"[h]:mm"});
+    const HEAD=["Datum","Wochentag","Art","Tour","Beginn","Pause","Ende","Stunden","Notiz"];
+    const sumOf=list=>list.filter(r=>r.type==="Tour").reduce((s,r)=>s+hours(r.start,r.end,r.pause),0);
+    const line=r=>[parse(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,pz(r.pause),r.end,r.type==="Tour"?hm(hours(r.start,r.end,r.pause)):"",[feiertag(r.date),r.note].filter(Boolean).join(", ")];
+    const aoa=[["Fahrer",full(d)],["Zeitraum",zeitraum],[]];
+    const sat=rows.filter(r=>parse(r.date).getDay()===6&&r.type==="Tour"), wk=rows.filter(r=>!sat.includes(r));
+    let sumWk=0,sumSa=0;
+    if(sat.length){
+      sumWk=sumOf(wk);sumSa=sumOf(sat);
+      aoa.push(["Montag bis Freitag"],HEAD,...wk.map(line),["Summe Montag bis Freitag","","","","","","",hm(sumWk)],[]);
+      aoa.push(["Samstag"],HEAD,...sat.map(line),["Summe Samstag","","","","","","",hm(sumSa)],[]);
+    }else{aoa.push(HEAD,...rows.map(line),[]);sumWk=sumOf(rows);}
     const tr=rows.filter(r=>r.type==="Tour");
-    const sumH=Math.round(tr.reduce((s,r)=>s+hours(r.start,r.end,r.pause),0)*100)/100;
+    const sumH=sumWk+sumSa;
     const days=new Set(tr.map(r=>r.date)).size, u=rows.filter(r=>r.type==="Urlaub").length, k=rows.filter(r=>r.type==="Krank").length;
-    aoa.push([],["Summe Arbeitsstunden","","","","","","",sumH],["Tourtage",days],["Urlaubstage",u],["Krankheitstage",k]);
-    summary.push([full(d),days,sumH,u,k]);
+    aoa.push(["Summe Arbeitsstunden gesamt","","","","","","",hm(sumH)],["Tourtage",days],["Urlaubstage",u],["Krankheitstage",k]);
+    summary.push([full(d),days,hm(sumWk),hm(sumSa),hm(sumH),u,k]);
     const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:"dd.mm.yyyy"});
-    ws["!cols"]=[{wch:20},{wch:10},{wch:9},{wch:26},{wch:8},{wch:7},{wch:8},{wch:9},{wch:30}];
+    ws["!cols"]=[{wch:26},{wch:10},{wch:9},{wch:26},{wch:8},{wch:7},{wch:8},{wch:9},{wch:30}];
     let n=d.name.replace(/[\\\/\?\*\[\]:]/g,"").slice(0,31)||"Fahrer",base=n,i=2;
     while(used.has(n)){n=base.slice(0,28)+" "+i++;} used.add(n);
     XLSX.utils.book_append_sheet(wb,ws,n);
   });
-  const ws0=XLSX.utils.aoa_to_sheet(summary); ws0["!cols"]=[{wch:24},{wch:10},{wch:15},{wch:12},{wch:14}];
+  const ws0=XLSX.utils.aoa_to_sheet(summary); ws0["!cols"]=[{wch:26},{wch:10},{wch:11},{wch:12},{wch:11},{wch:12},{wch:14}];
   XLSX.utils.book_append_sheet(wb,ws0,"Übersicht");
   wb.SheetNames.unshift(wb.SheetNames.pop());
   XLSX.writeFile(wb,"Einsatzplan_"+(f||"start")+"_bis_"+(t||iso(new Date()))+".xlsx");
