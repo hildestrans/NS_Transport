@@ -142,13 +142,13 @@ input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
     <section class="panel">
       <h2>Monatsliste</h2>
       <div class="row">
-        <label>Monat<select id="flMon"></select></label>
+        <label style="flex-basis:220px">1. Fahrer<select id="flDriver"></select></label>
+        <label>2. Monat<select id="flMon"></select></label>
         <label>Jahr<select id="flYear"></select></label>
-        <label style="flex-basis:220px">Fahrer<select id="flDriver"></select></label>
         <button class="primary" id="btnExport" style="flex:0 0 auto">Excel erstellen</button>
       </div>
       <input id="flFrom" type="hidden"><input id="flTo" type="hidden">
-      <div class="sub" style="margin-top:6px">Fahrer wählen: Die Excel-Liste wird sofort erstellt. „Alle Fahrer“ erstellt eine Datei mit einem Blatt je Fahrer.</div>
+      <div class="sub" style="margin-top:6px">Erst den Fahrer, dann den Monat wählen: Die Excel-Liste wird sofort erstellt. Für den aktuell gewählten Monat „Excel erstellen“ antippen. „Alle Fahrer“ erstellt eine Datei mit einem Blatt je Fahrer.</div>
       <div class="msg" id="planMsg"></div>
       <div class="stats" id="stats"></div>
       <div id="openBox" hidden>
@@ -357,8 +357,8 @@ function render(){
   $("openCount").textContent="("+open.length+")";
   $("openList").innerHTML=open.slice(0,40).map(o=>`<button type="button" onclick="fillSlot('${o.ds}','${o.tr.id}')">${WD[parse(o.ds).getDay()]} ${de(o.ds).slice(0,6)} · ${esc(o.tr.name)}</button>`).join("")+(open.length>40?`<span class="sub">… und ${open.length-40} weitere</span>`:"");
 }
-["flMon","flYear"].forEach(i=>$(i).onchange=setPeriod);
-$("flDriver").onchange=()=>{render();if($("flDriver").value)$("btnExport").click();};
+["flMon","flYear"].forEach(i=>$(i).onchange=()=>{setPeriod();if($("flDriver").value)$("btnExport").click();});
+$("flDriver").onchange=render;
 
 // Excel: ein Sheet je Fahrer
 $("btnExport").onclick=()=>{
