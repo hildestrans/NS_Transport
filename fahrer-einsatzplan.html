@@ -74,6 +74,7 @@ th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
     <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer</div>
   </div>
   <div class="row" style="flex:0 1 auto">
+    <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
     <button id="btnBackup">Sicherung speichern</button>
     <label class="check" style="cursor:pointer"><button type="button" id="btnRestore">Sicherung laden</button><input type="file" id="fileRestore" accept=".json" hidden></label>
   </div>
@@ -324,6 +325,74 @@ $("btnBackup").onclick=()=>{const a=document.createElement("a");
 $("btnRestore").onclick=()=>$("fileRestore").click();
 $("fileRestore").onchange=e=>{const fl=e.target.files[0];if(!fl)return;const r=new FileReader();
   r.onload=()=>{try{const d=JSON.parse(r.result);if(d.drivers&&d.tours&&d.entries){db=d;save();render();}}catch(x){alert("Datei ist keine gültige Sicherung.");}};r.readAsText(fl);};
+
+// Fahrer + Touren zusammenführen (ohne bestehende Daten zu löschen)
+function mergeDrivers(list){let nd=0,nt=0;
+  list.forEach(p=>{
+    let d=db.drivers.find(x=>x.name.toLowerCase()===p.name.toLowerCase());
+    if(!d){d={id:uid(),anrede:p.anrede||"",name:p.name};db.drivers.push(d);nd++;}
+    else if(!d.anrede&&p.anrede)d.anrede=p.anrede;
+    p.tours.forEach(t=>{
+      let tr=db.tours.find(x=>x.name.toLowerCase()===t.name.toLowerCase());
+      if(!tr){db.tours.push({id:uid(),name:t.name,start:t.start,end:t.end,driver:d.id,days:t.days});nt++;}
+      else if(!tr.driver)tr.driver=d.id;
+    });
+  });
+  return {nd,nt};}
+
+// Stundenzettel lesen: "Name des Mitarbeiters", Spalten "Tor No.", "Beginn", "Ende"
+function toHM(f,r){const m=String(f).match(/(\d{1,2}):(\d{2})/);
+  if(m)return String(+m[1]%24).padStart(2,"0")+":"+m[2];
+  if(typeof r==="number"&&r>=0&&r<2){const mins=Math.round((r%1)*1440);return String(Math.floor(mins/60)%24).padStart(2,"0")+":"+String(mins%60).padStart(2,"0");}
+  return "";}
+function toDate(f,r){const m=String(f).match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+  if(m){let y=+m[3];if(y<100)y+=2000;const d=new Date(y,+m[2]-1,+m[1]);if(d.getMonth()===+m[2]-1&&d.getDate()===+m[1])return d;return null;}
+  if(typeof r==="number"&&r>20000){const c=XLSX.SSF.parse_date_code(r);return new Date(c.y,c.m-1,c.d);}
+  return null;}
+function parseWorkbook(wb){const people=[];
+  wb.SheetNames.forEach(sn=>{const ws=wb.Sheets[sn];
+    const F=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:""}),R=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""});
+    let person=null,cols=null,lastDate=null;
+    F.forEach((row,i)=>{const cells=row.map(c=>String(c).trim());
+      const ni=cells.findIndex(c=>/name des mitarbeiters/i.test(c));
+      if(ni>=0){let nm=cells.slice(ni+1).find(c=>c)||"";let an="";
+        const am=nm.match(/^(Herr|Frau)\s+(.*)$/i);if(am){an=am[1][0].toUpperCase()+am[1].slice(1).toLowerCase();nm=am[2].trim();}
+        if(nm){person=people.find(p=>p.name===nm);if(!person){person={anrede:an,name:nm,map:{}};people.push(person);}}
+        cols=null;return;}
+      const ti=cells.findIndex(c=>/^tou?r\b/i.test(c));
+      if(ti>=0&&cells.some(c=>/beginn/i.test(c))){cols={date:cells.findIndex(c=>/kalendertag|datum/i.test(c)),tour:ti,
+        start:cells.findIndex(c=>/^beginn/i.test(c)),end:cells.findIndex(c=>/^ende/i.test(c))};if(cols.date<0)cols.date=0;lastDate=null;return;}
+      if(!person||!cols)return;
+      const tname=cells[cols.tour];
+      const dt=toDate(cells[cols.date],R[i]&&R[i][cols.date]);
+      if(cells[cols.date])lastDate=dt; const useDate=cells[cols.date]?dt:lastDate;
+      if(!tname||/sonntag|summe/i.test(tname))return;
+      const s=toHM(cells[cols.start],R[i]&&R[i][cols.start]),e=toHM(cells[cols.end],R[i]&&R[i][cols.end]);
+      if(!s||!e||(s==="00:00"&&e==="00:00"))return;
+      const t=person.map[tname]||(person.map[tname]={name:tname,times:{},days:new Set()});
+      const k=s+"-"+e;t.times[k]=(t.times[k]||0)+1;
+      if(useDate)t.days.add(useDate.getDay());
+    });
+  });
+  return people.map(p=>({anrede:p.anrede,name:p.name,tours:Object.values(p.map).map(t=>{
+    const k=Object.entries(t.times).sort((a,b)=>b[1]-a[1])[0][0].split("-");
+    return {name:t.name,start:k[0],end:k[1],days:t.days.size?[...t.days].sort():DEFDAYS.slice()};})})).filter(p=>p.tours.length||p.name);}
+$("btnImport").onclick=()=>$("fileImport").click();
+$("fileImport").onchange=async e=>{
+  if(typeof XLSX==="undefined"){alert("Excel-Bibliothek nicht geladen. Bitte Internetverbindung prüfen.");return;}
+  let all=[];
+  for(const fl of e.target.files){try{const wb=XLSX.read(await fl.arrayBuffer(),{type:"array"});all=all.concat(parseWorkbook(wb));}catch(x){}}
+  e.target.value="";
+  if(!all.length){$("planMsg").textContent="In der Datei wurde kein Stundenzettel gefunden (Zeile „Name des Mitarbeiters“ und Spalten Tour/Beginn/Ende).";return;}
+  const r=mergeDrivers(all);save();render();
+  $("planMsg").textContent="Import: "+all.map(p=>(p.anrede?p.anrede+" ":"")+p.name+" ("+p.tours.map(t=>t.name+" "+t.start+"–"+t.end).join(", ")+")").join("; ")+". Neu: "+r.nd+" Fahrer, "+r.nt+" Tour(en).";
+  $("planMsg").scrollIntoView({behavior:"smooth",block:"center"});};
+
+// Bereits gelieferte Stammdaten einmalig übernehmen
+if(!db.seeded1){mergeDrivers([{anrede:"Herr",name:"Khatan Adnan Mohammad",tours:[
+  {name:"843 P",start:"19:00",end:"02:30",days:[1,2,3,4,5]},
+  {name:"110 S",start:"11:00",end:"13:15",days:[6]},
+  {name:"921 P",start:"14:00",end:"20:00",days:[6]}]}]);db.seeded1=true;save();}
 
 // Start: aktueller Monat
 const now=new Date();
