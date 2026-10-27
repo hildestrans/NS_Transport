@@ -430,6 +430,17 @@ if(!db.seeded3){mergeDrivers([{anrede:"",name:"Saman",tours:[]}]);
   mergeDrivers([{anrede:"Herr",name:"Keyvan Rahimi",tours:[
     {name:"455 P",start:"14:55",end:"17:30",days:[1,2,3,4,5],wd:{3:{end:"17:20"},5:{driver:sam.id}}}]}]);
   db.seeded3=true;save();}
+if(!db.seeded4){mergeDrivers([{anrede:"",name:"Saman",tours:[]}]);
+  mergeDrivers([{anrede:"Herr",name:"Rejhan Kadife",tours:[
+    {name:"970 P",start:"07:30",end:"10:00",days:[1]},
+    {name:"870 Q",start:"07:30",end:"10:00",days:[2,3,4,5]},
+    {name:"130 P",start:"11:30",end:"12:00",days:[1,2,3,4,5]},
+    {name:"318 P",start:"13:00",end:"14:30",days:[1,2,3,4,5],wd:{5:{end:"15:30"}}},
+    {name:"617 P",start:"16:00",end:"18:30",days:[1,2,3,4,5]}]}]);
+  const sam=db.drivers.find(d=>d.name==="Saman"),rej=db.drivers.find(d=>d.name==="Rejhan Kadife");
+  const t617=db.tours.find(t=>t.name==="617 P");
+  if(t617&&t617.driver===rej.id&&!t617.wd){t617.driver=sam.id;t617.wd={5:{driver:rej.id}};}
+  db.seeded4=true;save();}
 
 // Start: aktueller Monat
 const now=new Date();
