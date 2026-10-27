@@ -215,12 +215,22 @@ $("btnPlan").onclick=()=>{const f=$("flFrom").value,t=$("flTo").value;
   if(!f||!t||t<f){$("planMsg").textContent="Bitte oben einen gültigen Zeitraum (Von/Bis) wählen.";return;}
   let n=0,skip=0;
   eachDay(f,t,(ds,wd)=>db.tours.forEach(tr=>{
-    if(!tr.driver||!plannedOn(tr,ds,wd)||tourEntry(tr,ds))return;
-    if(absent(tr.driver,ds)){skip++;return;}
-    db.entries.push({id:uid(),driver:tr.driver,date:ds,type:"Tour",tourId:tr.id,tour:tr.name,start:tr.start,pause:tr.pause||"",end:tr.end,note:""});n++;}));
+    const v=tw(tr,wd);
+    if(!v.driver||!plannedOn(tr,ds,wd)||tourEntry(tr,ds))return;
+    if(absent(v.driver,ds)){skip++;return;}
+    db.entries.push({id:uid(),driver:v.driver,date:ds,type:"Tour",tourId:tr.id,tour:tr.name,start:v.start,pause:v.pause||"",end:v.end,note:""});n++;}));
   save();render();
   $("planMsg").textContent=n+" Tour(en) eingetragen ("+de(f)+" bis "+de(t)+")."+(skip?" "+skip+" Tour(en) unbesetzt wegen Urlaub/Krank.":"");};
-$("eTour").onchange=()=>{const t=db.tours.find(t=>t.id===$("eTour").value);if(t){$("eStart").value=t.start;$("ePause").value=t.pause||"00:00";$("eEnd").value=t.end;}};
+// Werte einer Tour an einem Wochentag (Abweichungen je Tag haben Vorrang)
+function tw(t,wd){const o=(t.wd&&t.wd[wd])||{};return {driver:o.driver||t.driver||"",start:o.start||t.start,end:o.end||t.end,pause:o.pause!==undefined?o.pause:(t.pause||"")};}
+$("eTour").onchange=()=>{const t=db.tours.find(t=>t.id===$("eTour").value);if(t){const f=$("eFrom").value;const v=tw(t,f?parse(f).getDay():-1);
+  $("eStart").value=v.start;$("ePause").value=v.pause||"00:00";$("eEnd").value=v.end;}};
+$("eFrom").addEventListener("change",()=>{if(type==="Tour")$("eTour").onchange();});
+function addWd(id){const t=db.tours.find(t=>t.id===id);if(!t)return;const wd=+$("wd-"+id).value;
+  const o={};const dr=$("wdd-"+id).value,st=$("wds-"+id).value,en=$("wde-"+id).value;
+  if(dr)o.driver=dr;if(st)o.start=st;if(en)o.end=en;
+  if(!Object.keys(o).length)return;t.wd=t.wd||{};t.wd[wd]=o;if(!tdays(t).includes(wd))t.days=[...tdays(t),wd];save();render();}
+function delWd(id,wd){const t=db.tours.find(t=>t.id===id);if(t&&t.wd){delete t.wd[wd];save();render();}}
 
 // Eintrag
 $("fEntry").onsubmit=e=>{e.preventDefault();
@@ -229,7 +239,8 @@ $("fEntry").onsubmit=e=>{e.preventDefault();
   if(type==="Tour"){
     const t=db.tours.find(t=>t.id===$("eTour").value);
     if(!t){msg("Bitte zuerst eine Tour anlegen.");return;}
-    const vert=t.driver&&t.driver!==drv?"Vertretung für "+dname(t.driver):"";
+    const stamm=tw(t,parse(from).getDay()).driver;
+    const vert=stamm&&stamm!==drv?"Vertretung für "+dname(stamm):"";
     const note=$("eNote").value.trim()||vert;
     const ex=tourEntry(t,from);
     if(ex){const old=ex.driver;Object.assign(ex,{driver:drv,tourId:t.id,tour:t.name,start:$("eStart").value,end:$("eEnd").value,note});
@@ -269,7 +280,16 @@ function render(){
   const dayTxt=t=>[1,2,3,4,5,6,0].filter(x=>tdays(t).includes(x)).map(x=>WD[x]).join(" ");
   $("tourList").innerHTML=db.tours.map(t=>`<li style="flex-wrap:wrap"><span style="flex:1 1 100%">${esc(t.name)} <span class="times">${t.start}–${t.end}${pmin(t.pause)?" (Pause "+t.pause+")":""} · ${dayTxt(t)}</span></span>
     <select class="sel" aria-label="Stammfahrer" onchange="setTourDriver('${t.id}',this.value)"><option value="">– kein Stammfahrer –</option>${db.drivers.map(d=>`<option value="${d.id}"${t.driver===d.id?" selected":""}>${esc(full(d))}</option>`).join("")}</select>
-    <button class="small" onclick="delTour('${t.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Touren. Name und Zeiten oben eintragen.</li>';
+    <button class="small" onclick="delTour('${t.id}')">Löschen</button>
+    ${Object.entries(t.wd||{}).map(([w,o])=>`<span class="times" style="flex:1 1 100%">${WD[w]}: ${o.driver?esc(dname(o.driver))+" · ":""}${o.start||t.start}–${o.end||t.end} <button class="small" onclick="delWd('${t.id}',${w})" aria-label="Abweichung entfernen">×</button></span>`).join("")}
+    <details style="flex:1 1 100%"><summary class="sub" style="cursor:pointer">Abweichung für einen Wochentag</summary>
+      <div class="row" style="margin-top:6px">
+        <select id="wd-${t.id}" class="sel">${[1,2,3,4,5,6,0].map(x=>`<option value="${x}">${WD[x]}</option>`).join("")}</select>
+        <select id="wdd-${t.id}" class="sel"><option value="">gleicher Fahrer</option>${db.drivers.map(d=>`<option value="${d.id}">${esc(full(d))}</option>`).join("")}</select>
+        <input id="wds-${t.id}" type="time" aria-label="Beginn" style="flex:0 0 auto;width:auto">
+        <input id="wde-${t.id}" type="time" aria-label="Ende" style="flex:0 0 auto;width:auto">
+        <button class="small" type="button" onclick="addWd('${t.id}')">Übernehmen</button>
+      </div></details></li>`).join("")||'<li class="empty">Noch keine Touren. Name und Zeiten oben eintragen.</li>';
   const tdcur=$("tourDriver").value; $("tourDriver").innerHTML='<option value="">– kein Stammfahrer –</option>'+opts; $("tourDriver").value=tdcur;
   const cur=$("eDriver").value; $("eDriver").innerHTML=opts; if(cur)$("eDriver").value=cur;
   const fcur=$("flDriver").value; $("flDriver").innerHTML='<option value="">Alle Fahrer</option>'+opts; $("flDriver").value=fcur;
@@ -338,7 +358,8 @@ function mergeDrivers(list){let nd=0,nt=0;
     else if(!d.anrede&&p.anrede)d.anrede=p.anrede;
     p.tours.forEach(t=>{
       let tr=db.tours.find(x=>x.name.toLowerCase()===t.name.toLowerCase());
-      if(!tr){db.tours.push({id:uid(),name:t.name,start:t.start,pause:t.pause||"",end:t.end,driver:d.id,days:t.days});nt++;}
+      if(!tr){tr={id:uid(),name:t.name,start:t.start,pause:t.pause||"",end:t.end,driver:d.id,days:t.days};db.tours.push(tr);nt++;
+        if(t.wd)tr.wd=JSON.parse(JSON.stringify(t.wd));}
       else{if(!tr.driver)tr.driver=d.id;if(tr.pause===undefined&&t.pause)tr.pause=t.pause;}
     });
   });
@@ -404,6 +425,11 @@ if(!db.seeded2){mergeDrivers([{anrede:"Frau",name:"Tahmasebi",tours:[
   {name:"1646/1653",start:"17:00",end:"18:00",days:[1,2,3,4,5]},
   {name:"3008",start:"10:00",end:"11:45",days:[6]},
   {name:"3153",start:"12:00",end:"14:00",days:[6]}]}]);db.seeded2=true;save();}
+if(!db.seeded3){mergeDrivers([{anrede:"",name:"Saman",tours:[]}]);
+  const sam=db.drivers.find(d=>d.name==="Saman");
+  mergeDrivers([{anrede:"Herr",name:"Keyvan Rahimi",tours:[
+    {name:"455 P",start:"14:55",end:"17:30",days:[1,2,3,4,5],wd:{3:{end:"17:20"},5:{driver:sam.id}}}]}]);
+  db.seeded3=true;save();}
 
 // Start: aktueller Monat
 const now=new Date();
