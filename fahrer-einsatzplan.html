@@ -78,7 +78,7 @@ input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 9</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 10</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -376,7 +376,8 @@ $("btnExport").onclick=()=>{
     const hm=h=>({t:"n",v:Math.round(h*60)/1440,z:"[h]:mm"});
     const HEAD=["Datum","Wochentag","Art","Tour","Beginn","Pause","Ende","Stunden","Notiz"];
     const sumOf=list=>list.filter(r=>r.type==="Tour").reduce((s,r)=>s+hours(r.start,r.end,r.pause),0);
-    const line=r=>[parse(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,pz(r.pause),r.end,r.type==="Tour"?hm(hours(r.start,r.end,r.pause)):"",[feiertag(r.date),r.note].filter(Boolean).join(", ")];
+    const xd=ds=>{const [y,m,d]=ds.split("-").map(Number);return {t:"n",v:(Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/864e5,z:"dd\\.mm\\.yyyy"};};
+    const line=r=>[xd(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,pz(r.pause),r.end,r.type==="Tour"?hm(hours(r.start,r.end,r.pause)):"",[feiertag(r.date),r.note].filter(Boolean).join(", ")];
     const aoa=[["N&S Transport GbR – Arbeitszeitnachweis"],["Fahrer",full(d)],["Monat",zeitraum],[]];
     const sat=rows.filter(r=>parse(r.date).getDay()===6), wk=rows.filter(r=>!sat.includes(r));
     let sumWk=0,sumSa=0;
@@ -390,7 +391,7 @@ $("btnExport").onclick=()=>{
     const days=new Set(tr.map(r=>r.date)).size, u=rows.filter(r=>r.type==="Urlaub").length, k=rows.filter(r=>r.type==="Krank").length;
     aoa.push(["Summe Arbeitsstunden gesamt","","","","","","",hm(sumH)],["Tourtage",days],["Urlaubstage",u],["Krankheitstage",k]);
     summary.push([full(d),days,hm(sumWk),hm(sumSa),hm(sumH),u,k]);
-    const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:"dd.mm.yyyy"});
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"]=[{wch:26},{wch:10},{wch:9},{wch:26},{wch:8},{wch:7},{wch:8},{wch:9},{wch:30}];
     let n=d.name.replace(/[\\\/\?\*\[\]:]/g,"").slice(0,31)||"Fahrer",base=n,i=2;
     while(used.has(n)){n=base.slice(0,28)+" "+i++;} used.add(n);
