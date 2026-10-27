@@ -65,6 +65,11 @@ th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
 .days{display:flex;flex-wrap:wrap;gap:4px 12px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{border-color:var(--krank);font-weight:600;font-variant-numeric:tabular-nums}
+.edit{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.edit input{width:auto;flex:0 0 auto;padding:3px 5px;font-size:13px}
+input.name{background:transparent;border-color:transparent;font-weight:600;padding:3px 5px;min-width:0}
+input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
+.edit input.name{flex:1 1 110px}
 .sel{flex:0 0 auto;width:auto;padding:3px 4px;font-size:13px}
 </style>
 </head>
@@ -213,6 +218,11 @@ $("fDriver").onsubmit=e=>{e.preventDefault();const n=$("driverName").value.trim(
   if(db.drivers.some(d=>d.name.toLowerCase()===n.toLowerCase()))return;
   db.drivers.push({id:uid(),anrede:$("driverAnrede").value,name:n});$("driverName").value="";save();render();};
 const full=d=>((d.anrede?d.anrede+" ":"")+d.name);
+function renameDriver(id,v){v=v.trim();const d=db.drivers.find(d=>d.id===id);if(!d||!v){render();return;}d.name=v;save();render();}
+function editTour(id,k,v){const t=db.tours.find(t=>t.id===id);if(!t)return;
+  if(k==="name"){v=v.trim();if(!v){render();return;}db.entries.forEach(e=>{if(e.type==="Tour"&&(e.tourId===id||(!e.tourId&&e.tour===t.name))){e.tour=v;e.tourId=id;}});}
+  if((k==="start"||k==="end")&&!v){render();return;}
+  t[k]=v;save();render();}
 function setAnrede(id,v){const d=db.drivers.find(d=>d.id===id);if(d){d.anrede=v;save();render();}}
 // Touren
 $("fTour").onsubmit=e=>{e.preventDefault();const n=$("tourName").value.trim();if(!n)return;
@@ -290,10 +300,15 @@ const dname=id=>{const d=db.drivers.find(d=>d.id===id);return d?full(d):"?";};
 
 const sortedTours=()=>db.tours.slice().sort((a,b)=>(a.start||"").localeCompare(b.start||"")||a.name.localeCompare(b.name,"de",{numeric:true}));
 function render(){
-  $("driverList").innerHTML=db.drivers.map(d=>`<li><select class="small" style="flex:0 0 76px;padding:3px 4px;font-size:13px" aria-label="Anrede" onchange="setAnrede('${d.id}',this.value)">${["","Herr","Frau"].map(a=>`<option value="${a}"${(d.anrede||"")===a?" selected":""}>${a||"–"}</option>`).join("")}</select><span style="flex:1">${esc(d.name)}</span><button class="small" id="del-${d.id}" onclick="delDriver('${d.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Fahrer. Namen oben eintragen.</li>';
+  $("driverList").innerHTML=db.drivers.map(d=>`<li><select class="small" style="flex:0 0 76px;padding:3px 4px;font-size:13px" aria-label="Anrede" onchange="setAnrede('${d.id}',this.value)">${["","Herr","Frau"].map(a=>`<option value="${a}"${(d.anrede||"")===a?" selected":""}>${a||"–"}</option>`).join("")}</select><input class="name" style="flex:1" value="${esc(d.name)}" aria-label="Name" onchange="renameDriver('${d.id}',this.value)"><button class="small" id="del-${d.id}" onclick="delDriver('${d.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Fahrer. Namen oben eintragen.</li>';
   const opts=db.drivers.map(d=>`<option value="${d.id}">${esc(full(d))}</option>`).join("");
   const dayTxt=t=>[1,2,3,4,5,6,0].filter(x=>tdays(t).includes(x)).map(x=>WD[x]).join(" ");
-  $("tourList").innerHTML=sortedTours().map(t=>`<li style="flex-wrap:wrap"><span style="flex:1 1 100%">${esc(t.name)} <span class="times">${t.start}–${t.end}${pmin(t.pause)?" (Pause "+t.pause+")":""} · ${dayTxt(t)}</span></span>
+  $("tourList").innerHTML=sortedTours().map(t=>`<li style="flex-wrap:wrap"><span class="edit" style="flex:1 1 100%">
+      <input class="name" value="${esc(t.name)}" aria-label="Tourname" onchange="editTour('${t.id}','name',this.value)">
+      <input type="time" value="${t.start}" aria-label="Beginn" onchange="editTour('${t.id}','start',this.value)">
+      <input type="time" value="${t.pause||""}" aria-label="Pause" title="Pause" onchange="editTour('${t.id}','pause',this.value)">
+      <input type="time" value="${t.end}" aria-label="Ende" onchange="editTour('${t.id}','end',this.value)">
+      <span class="times">${dayTxt(t)}</span></span>
     <select class="sel" aria-label="Stammfahrer" onchange="setTourDriver('${t.id}',this.value)"><option value="">– kein Stammfahrer –</option>${db.drivers.map(d=>`<option value="${d.id}"${t.driver===d.id?" selected":""}>${esc(full(d))}</option>`).join("")}</select>
     <button class="small" onclick="delTour('${t.id}')">Löschen</button>
     ${Object.entries(t.wd||{}).map(([w,o])=>`<span class="times" style="flex:1 1 100%">${WD[w]}: ${o.driver?esc(dname(o.driver))+" · ":""}${o.start||t.start}–${o.end||t.end} <button class="small" onclick="delWd('${t.id}',${w})" aria-label="Abweichung entfernen">×</button></span>`).join("")}
