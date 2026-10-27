@@ -393,17 +393,31 @@ $("btnExport").onclick=()=>{
   XLSX.utils.book_append_sheet(wb,ws0,"Übersicht");
   wb.SheetNames.unshift(wb.SheetNames.pop());
   saveXlsx(wb,"Einsatzplan_"+(f||"start")+"_bis_"+(t||iso(new Date()))+".xlsx");
-  }catch(err){showErr("Excel-Export fehlgeschlagen: "+err.message);}
+  }catch(err){showErr("Excel-Export fehlgeschlagen: "+errText(err)+(err&&err.stack?" | "+String(err.stack).split("\n").slice(0,2).join(" "):""));}
 };
-function showErr(t){const m=$("planMsg");m.style.color="var(--krank)";m.textContent=t;m.scrollIntoView({behavior:"smooth",block:"center"});}
+function showErr(t){const m=$("planMsg");m.style.color="var(--krank)";m.textContent=t;try{m.scrollIntoView({behavior:"smooth",block:"center"});}catch(x){}}
+const errText=e=>{try{return (e&&e.message)||String(e)||"unbekannter Fehler";}catch(x){return "unbekannter Fehler";}};
 function saveXlsx(wb,name){
-  const data=XLSX.write(wb,{bookType:"xlsx",type:"array"});
-  const blob=new Blob([data],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");a.href=url;a.download=name;a.style.display="none";document.body.appendChild(a);a.click();
-  setTimeout(()=>a.remove(),1000);
-  const m=$("planMsg");m.style.color="";m.innerHTML="Excel erstellt: <b>"+esc(name)+"</b> (Ordner „Downloads“). Kein Download? <a id=\"dlLink\" href=\""+url+"\" download=\""+esc(name)+"\">Hier antippen</a>";
-  m.scrollIntoView({behavior:"smooth",block:"center"});}
+  const m=$("planMsg");m.style.color="";
+  // 1) eigener Download über Blob
+  try{
+    const data=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+    const url=URL.createObjectURL(new Blob([data],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    const a=document.createElement("a");a.href=url;a.download=name;a.style.display="none";document.body.appendChild(a);a.click();
+    setTimeout(()=>a.remove(),1000);
+    m.innerHTML="Excel erstellt: <b>"+esc(name)+"</b> (Ordner „Downloads“). Kein Download? <a href=\""+url+"\" download=\""+esc(name)+"\">Hier antippen</a>";
+    return;
+  }catch(e1){
+    // 2) Bibliothek speichert selbst
+    try{XLSX.writeFile(wb,name);m.innerHTML="Excel erstellt: <b>"+esc(name)+"</b> (Ordner „Downloads“).";return;}
+    catch(e2){
+      // 3) Link als Daten-URL
+      try{const b64=XLSX.write(wb,{bookType:"xlsx",type:"base64"});
+        m.innerHTML="Download nicht automatisch möglich. <a href=\"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,"+b64+"\" download=\""+esc(name)+"\">Excel hier herunterladen</a>";return;}
+      catch(e3){throw new Error("Download: "+errText(e1)+" / "+errText(e2)+" / "+errText(e3));}
+    }
+  }finally{try{m.scrollIntoView({behavior:"smooth",block:"center"});}catch(x){}}
+}
 
 // Sicherung
 $("btnBackup").onclick=()=>{const a=document.createElement("a");
