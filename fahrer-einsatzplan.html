@@ -81,7 +81,7 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 18</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 19</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -640,6 +640,17 @@ if(!db.seeded12){const ham=db.drivers.find(d=>/hamed/i.test(d.name));
     t.hist=(t.hist||[]).filter(h=>h.driver!==ham.id&&db.drivers.some(d=>d.id===h.driver));t.hist.push({from:"2026-09-01",driver:ham.id});
     if(!db.drivers.some(d=>d.id===t.driver))t.driver=ham.id;});
   db.seeded12=true;save();}
+// Herr Hamed und seine Touren sicherstellen (falls beim Löschen entfernt)
+if(!db.seeded13){let ham=db.drivers.find(d=>/hamed/i.test(d.name));
+  if(!ham){ham={id:uid(),anrede:"Herr",name:"Hamed Mohammadi"};db.drivers.push(ham);}
+  [{name:"947",start:"09:45",end:"11:30",days:[1,2,3,4,5]},{name:"1140",start:"11:45",pause:"00:20",end:"13:15",days:[1,2,3,4,5]},
+   {name:"1357",start:"13:45",pause:"00:45",end:"16:00",days:[1,2,3,4,5]},{name:"1646/1653",start:"17:00",end:"18:00",days:[1,2,3,4,5]},
+   {name:"3008",start:"10:00",end:"11:45",days:[6]},{name:"3153",start:"12:00",end:"14:00",days:[6]}].forEach(x=>{
+    let t=db.tours.find(t=>t.name.replace(/\s/g,"")===x.name);
+    if(!t){t={id:uid(),name:x.name,start:x.start,pause:x.pause||"",end:x.end,days:x.days,driver:ham.id};db.tours.push(t);}
+    if(!db.drivers.some(d=>d.id===t.driver))t.driver=ham.id;
+    t.hist=(t.hist||[]).filter(h=>h.driver!==ham.id&&db.drivers.some(d=>d.id===h.driver));t.hist.push({from:"2026-09-01",driver:ham.id});});
+  db.seeded13=true;save();}
 // Touren, deren Stammfahrer gelöscht wurde, gelten als ohne Stammfahrer
 db.tours.forEach(t=>{if(t.driver&&!db.drivers.some(d=>d.id===t.driver))t.driver="";if(t.hist)t.hist=t.hist.filter(h=>db.drivers.some(d=>d.id===h.driver));});
 
