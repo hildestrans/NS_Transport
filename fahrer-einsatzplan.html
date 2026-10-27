@@ -78,7 +78,7 @@ input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 11</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 12</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -562,6 +562,12 @@ if(!db.seeded7){mergeDrivers([{anrede:"Herr",name:"Hamed Mohammadi",tours:[]}]);
   ["947","1140","1357","1646/1653","3008","3153"].forEach(n=>{const t=db.tours.find(t=>t.name===n);
     if(t){t.hist=(t.hist||[]).filter(h=>h.from!=="2026-12-01");t.hist.push({from:"2026-12-01",driver:ham.id});}});
   db.seeded7=true;save();}
+if(!db.seeded8){const ham=db.drivers.find(d=>d.name==="Hamed Mohammadi"),tah=db.drivers.find(d=>d.name==="Tahmasebi");
+  if(ham&&tah){
+    ["947","1140","1357","1646/1653","3008","3153"].forEach(n=>{const t=db.tours.find(t=>t.name===n);
+      if(t){t.hist=(t.hist||[]).filter(h=>!(h.driver===ham.id));t.hist.push({from:"2026-09-01",driver:ham.id});}});
+    db.entries.forEach(e=>{if(e.driver===tah.id&&e.date>="2026-09-01")e.driver=ham.id;});}
+  db.seeded8=true;save();}
 
 // Start: aktueller Monat
 const now=new Date();
