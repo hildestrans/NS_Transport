@@ -190,7 +190,16 @@ const tdays=t=>t.days||DEFDAYS;
 const absent=(drv,ds)=>db.entries.some(e=>e.driver===drv&&e.date===ds&&e.type!=="Tour");
 const tourEntry=(t,ds)=>db.entries.find(e=>e.type==="Tour"&&e.date===ds&&(e.tourId?e.tourId===t.id:e.tour===t.name));
 function eachDay(f,t,cb){let d=parse(f),e=parse(t);while(d<=e){cb(iso(d),d.getDay());d.setDate(d.getDate()+1);}}
-const plannedOn=(t,ds,wd)=>tdays(t).includes(wd)&&(!t.created||ds>=t.created);
+// Gesetzliche Feiertage Niedersachsen
+const _hol={};
+function feiertage(y){if(_hol[y])return _hol[y];
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  const mon=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1,os=new Date(y,mon-1,day);
+  const off=n=>{const x=new Date(os);x.setDate(x.getDate()+n);return iso(x);};
+  return _hol[y]={[y+"-01-01"]:"Neujahr",[off(-2)]:"Karfreitag",[off(1)]:"Ostermontag",[y+"-05-01"]:"Tag der Arbeit",[off(39)]:"Christi Himmelfahrt",
+    [off(50)]:"Pfingstmontag",[y+"-10-03"]:"Tag der Deutschen Einheit",[y+"-10-31"]:"Reformationstag",[y+"-12-25"]:"1. Weihnachtstag",[y+"-12-26"]:"2. Weihnachtstag"};}
+const feiertag=ds=>feiertage(+ds.slice(0,4))[ds]||"";
+const plannedOn=(t,ds,wd)=>tdays(t).includes(wd)&&(!t.created||ds>=t.created)&&!feiertag(ds);
 function openSlots(){const f=$("flFrom").value,t=$("flTo").value;if(!f||!t||t<f)return[];const out=[];
   eachDay(f,t,(ds,wd)=>db.tours.forEach(tr=>{if(plannedOn(tr,ds,wd)&&!tourEntry(tr,ds))out.push({ds,tr});}));return out;}
 function setTourDriver(id,v){const t=db.tours.find(t=>t.id===id);if(t){t.driver=v;save();render();}}
@@ -215,21 +224,25 @@ $("btnPlan").onclick=()=>{const f=$("flFrom").value,t=$("flTo").value;
   if(!f||!t||t<f){$("planMsg").textContent="Bitte oben einen gültigen Zeitraum (Von/Bis) wählen.";return;}
   let n=0,skip=0;
   eachDay(f,t,(ds,wd)=>db.tours.forEach(tr=>{
-    const v=tw(tr,wd);
+    const v=tw(tr,wd,ds);
     if(!v.driver||!plannedOn(tr,ds,wd)||tourEntry(tr,ds))return;
     if(absent(v.driver,ds)){skip++;return;}
     db.entries.push({id:uid(),driver:v.driver,date:ds,type:"Tour",tourId:tr.id,tour:tr.name,start:v.start,pause:v.pause||"",end:v.end,note:""});n++;}));
   save();render();
   $("planMsg").textContent=n+" Tour(en) eingetragen ("+de(f)+" bis "+de(t)+")."+(skip?" "+skip+" Tour(en) unbesetzt wegen Urlaub/Krank.":"");};
 // Werte einer Tour an einem Wochentag (Abweichungen je Tag haben Vorrang)
-function tw(t,wd){const o=(t.wd&&t.wd[wd])||{};return {driver:o.driver||t.driver||"",start:o.start||t.start,end:o.end||t.end,pause:o.pause!==undefined?o.pause:(t.pause||"")};}
-$("eTour").onchange=()=>{const t=db.tours.find(t=>t.id===$("eTour").value);if(t){const f=$("eFrom").value;const v=tw(t,f?parse(f).getDay():-1);
+function stammAm(t,ds){let d=t.driver||"";if(ds&&t.hist)t.hist.filter(h=>h.from<=ds).sort((a,b)=>a.from.localeCompare(b.from)).forEach(h=>d=h.driver);return d;}
+function tw(t,wd,ds){const o=(t.wd&&t.wd[wd])||{};return {driver:o.driver||stammAm(t,ds),start:o.start||t.start,end:o.end||t.end,pause:o.pause!==undefined?o.pause:(t.pause||"")};}
+$("eTour").onchange=()=>{const t=db.tours.find(t=>t.id===$("eTour").value);if(t){const f=$("eFrom").value;const v=tw(t,f?parse(f).getDay():-1,f);
   $("eStart").value=v.start;$("ePause").value=v.pause||"00:00";$("eEnd").value=v.end;}};
 $("eFrom").addEventListener("change",()=>{if(type==="Tour")$("eTour").onchange();});
 function addWd(id){const t=db.tours.find(t=>t.id===id);if(!t)return;const wd=+$("wd-"+id).value;
   const o={};const dr=$("wdd-"+id).value,st=$("wds-"+id).value,en=$("wde-"+id).value;
   if(dr)o.driver=dr;if(st)o.start=st;if(en)o.end=en;
   if(!Object.keys(o).length)return;t.wd=t.wd||{};t.wd[wd]=o;if(!tdays(t).includes(wd))t.days=[...tdays(t),wd];save();render();}
+function addHist(id){const t=db.tours.find(t=>t.id===id);const f=$("hf-"+id).value,dr=$("hd-"+id).value;if(!t||!f||!dr)return;
+  t.hist=(t.hist||[]).filter(h=>h.from!==f);t.hist.push({from:f,driver:dr});save();render();}
+function delHist(id,f){const t=db.tours.find(t=>t.id===id);if(t&&t.hist){t.hist=t.hist.filter(h=>h.from!==f);save();render();}}
 function delWd(id,wd){const t=db.tours.find(t=>t.id===id);if(t&&t.wd){delete t.wd[wd];save();render();}}
 
 // Eintrag
@@ -239,7 +252,7 @@ $("fEntry").onsubmit=e=>{e.preventDefault();
   if(type==="Tour"){
     const t=db.tours.find(t=>t.id===$("eTour").value);
     if(!t){msg("Bitte zuerst eine Tour anlegen.");return;}
-    const stamm=tw(t,parse(from).getDay()).driver;
+    const stamm=tw(t,parse(from).getDay(),from).driver;
     const vert=stamm&&stamm!==drv?"Vertretung für "+dname(stamm):"";
     const note=$("eNote").value.trim()||vert;
     const ex=tourEntry(t,from);
@@ -282,6 +295,13 @@ function render(){
     <select class="sel" aria-label="Stammfahrer" onchange="setTourDriver('${t.id}',this.value)"><option value="">– kein Stammfahrer –</option>${db.drivers.map(d=>`<option value="${d.id}"${t.driver===d.id?" selected":""}>${esc(full(d))}</option>`).join("")}</select>
     <button class="small" onclick="delTour('${t.id}')">Löschen</button>
     ${Object.entries(t.wd||{}).map(([w,o])=>`<span class="times" style="flex:1 1 100%">${WD[w]}: ${o.driver?esc(dname(o.driver))+" · ":""}${o.start||t.start}–${o.end||t.end} <button class="small" onclick="delWd('${t.id}',${w})" aria-label="Abweichung entfernen">×</button></span>`).join("")}
+    ${(t.hist||[]).map(h=>`<span class="times" style="flex:1 1 100%">ab ${de(h.from)}: ${esc(dname(h.driver))} <button class="small" onclick="delHist('${t.id}','${h.from}')" aria-label="Fahrerwechsel entfernen">×</button></span>`).join("")}
+    <details style="flex:1 1 100%"><summary class="sub" style="cursor:pointer">Neuer Stammfahrer ab Datum</summary>
+      <div class="row" style="margin-top:6px">
+        <input id="hf-${t.id}" type="date" aria-label="ab Datum" style="flex:0 0 auto;width:auto">
+        <select id="hd-${t.id}" class="sel">${db.drivers.map(d=>`<option value="${d.id}">${esc(full(d))}</option>`).join("")}</select>
+        <button class="small" type="button" onclick="addHist('${t.id}')">Übernehmen</button>
+      </div></details>
     <details style="flex:1 1 100%"><summary class="sub" style="cursor:pointer">Abweichung für einen Wochentag</summary>
       <div class="row" style="margin-top:6px">
         <select id="wd-${t.id}" class="sel">${[1,2,3,4,5,6,0].map(x=>`<option value="${x}">${WD[x]}</option>`).join("")}</select>
@@ -297,7 +317,7 @@ function render(){
   if(tcur&&db.tours.some(t=>t.id===tcur))$("eTour").value=tcur; else $("eTour").onchange();
   const rows=filtered();
   $("entryBody").innerHTML=rows.map(e=>{const h=e.type==="Tour"?hours(e.start,e.end,e.pause):0;
-    return `<tr><td>${de(e.date)}</td><td>${WD[parse(e.date).getDay()]}</td><td>${esc(dname(e.driver))}</td><td><span class="pill ${e.type}">${e.type}</span></td><td>${esc(e.tour)}</td><td>${e.start||""}</td><td>${pz(e.pause)}</td><td>${e.end||""}</td><td>${h?fmtH(h):""}</td><td>${esc(e.note)}</td><td><button class="small" onclick="delEntry('${e.id}')">×</button></td></tr>`}).join("")
+    return `<tr><td>${de(e.date)}</td><td>${WD[parse(e.date).getDay()]}${feiertag(e.date)?` <span class="pill Urlaub" title="${feiertag(e.date)}">Feiertag</span>`:""}</td><td>${esc(dname(e.driver))}</td><td><span class="pill ${e.type}">${e.type}</span></td><td>${esc(e.tour)}</td><td>${e.start||""}</td><td>${pz(e.pause)}</td><td>${e.end||""}</td><td>${h?fmtH(h):""}</td><td>${esc(e.note)}</td><td><button class="small" onclick="delEntry('${e.id}')">×</button></td></tr>`}).join("")
     ||'<tr><td colspan="11" class="empty">Keine Einträge im gewählten Zeitraum.</td></tr>';
   const tours=rows.filter(r=>r.type==="Tour");
   $("stats").innerHTML=`<div class="stat">Tourtage <b>${new Set(tours.map(r=>r.driver+r.date)).size}</b></div>
@@ -324,7 +344,7 @@ $("btnExport").onclick=()=>{
     const rows=rowsAll.filter(r=>r.driver===d.id);
     const aoa=[["Fahrer",full(d)],["Zeitraum",zeitraum],[],["Datum","Wochentag","Art","Tour","Beginn","Pause","Ende","Stunden","Notiz"]];
     rows.forEach(r=>{const h=r.type==="Tour"?hours(r.start,r.end,r.pause):"";
-      aoa.push([parse(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,pz(r.pause),r.end,h,r.note]);});
+      aoa.push([parse(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,pz(r.pause),r.end,h,[feiertag(r.date),r.note].filter(Boolean).join(", ")]);});
     const tr=rows.filter(r=>r.type==="Tour");
     const sumH=Math.round(tr.reduce((s,r)=>s+hours(r.start,r.end,r.pause),0)*100)/100;
     const days=new Set(tr.map(r=>r.date)).size, u=rows.filter(r=>r.type==="Urlaub").length, k=rows.filter(r=>r.type==="Krank").length;
@@ -458,6 +478,11 @@ if(!db.seeded6){mergeDrivers([{anrede:"Herr",name:"Saman",tours:[
     db.entries=db.entries.filter(x=>!(x.driver===sam.id&&x.date===ds&&x.type==="Tour"));
     db.entries.push({id:uid(),driver:sam.id,date:ds,type:"Urlaub",tour:"",start:"",pause:"",end:"",note:""});}});
   db.seeded6=true;save();}
+if(!db.seeded7){mergeDrivers([{anrede:"Herr",name:"Hamed Mohammadi",tours:[]}]);
+  const ham=db.drivers.find(d=>d.name==="Hamed Mohammadi");
+  ["947","1140","1357","1646/1653","3008","3153"].forEach(n=>{const t=db.tours.find(t=>t.name===n);
+    if(t){t.hist=(t.hist||[]).filter(h=>h.from!=="2026-12-01");t.hist.push({from:"2026-12-01",driver:ham.id});}});
+  db.seeded7=true;save();}
 
 // Start: aktueller Monat
 const now=new Date();
