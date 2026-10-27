@@ -55,7 +55,7 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font
 th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.78rem;font-weight:600;border:1px solid currentColor}
-.pill.Tour{color:var(--tour)} .pill.Urlaub{color:var(--urlaub)} .pill.Krank{color:var(--krank)}
+.pill.Tour{color:var(--tour)} .pill.Urlaub{color:var(--urlaub)} .pill.Krank{color:var(--krank)} .pill.Extra{color:var(--muted)}
 .empty{color:var(--muted);padding:14px 4px}
 .stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .stat{background:var(--bg);border-radius:6px;padding:6px 10px;font-size:.85rem}
@@ -81,7 +81,7 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 14</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 15</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -126,6 +126,7 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
         <button type="button" data-type="Tour" aria-pressed="true">Tour</button>
         <button type="button" data-type="Urlaub" aria-pressed="false">Urlaub</button>
         <button type="button" data-type="Krank" aria-pressed="false">Krank</button>
+        <button type="button" data-type="Extra" aria-pressed="false">Zusatzzeit</button>
       </div>
       <form id="fEntry" class="row" style="margin-top:12px">
         <label>Fahrer<select id="eDriver" required></select></label>
@@ -135,6 +136,7 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
         <label id="lStart">Beginn<input id="eStart" type="time"></label>
         <label id="lPause">Pause<input id="ePause" type="time"></label>
         <label id="lEnd">Ende<input id="eEnd" type="time"></label>
+        <label id="lDur" hidden>Dauer<input id="eDur" type="time" value="00:20"></label>
         <label style="flex-basis:100%">Notiz<input id="eNote" placeholder="optional"></label>
         <label class="check" id="lSkip" hidden><input type="checkbox" id="eSkip" checked> Nur Arbeitstage des Fahrers zählen (nach seinen Touren, ohne Feiertage)</label>
         <button class="primary" style="flex:0 0 auto">Eintrag speichern</button>
@@ -194,15 +196,18 @@ let type="Tour";
 function setType(tp){
   type=tp;
   document.querySelectorAll(".seg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.type===tp));
-  const isTour=type==="Tour";
+  const isTour=type==="Tour",isExtra=type==="Extra",single=isTour||isExtra;
   ["lTour","lStart","lPause","lEnd"].forEach(i=>$(i).hidden=!isTour);
-  $("lTo").hidden=isTour; $("lSkip").hidden=isTour;
-  $("lFrom").firstChild.textContent=isTour?"Datum":"Von";
+  $("lDur").hidden=!isExtra;
+  $("lTo").hidden=single; $("lSkip").hidden=single;
+  $("lFrom").firstChild.textContent=single?"Datum":"Von";
 }
 document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>setType(b.dataset.type));
 const DEFDAYS=[1,2,3,4,5];
 const tdays=t=>t.days||DEFDAYS;
-const absent=(drv,ds)=>db.entries.some(e=>e.driver===drv&&e.date===ds&&e.type!=="Tour");
+const absent=(drv,ds)=>db.entries.some(e=>e.driver===drv&&e.date===ds&&(e.type==="Urlaub"||e.type==="Krank"));
+const isWork=e=>e.type==="Tour"||e.type==="Extra";
+const entH=e=>isWork(e)?hours(e.start,e.end,e.pause):0;
 const tourEntry=(t,ds)=>db.entries.find(e=>e.type==="Tour"&&e.date===ds&&(e.tourId?e.tourId===t.id:e.tour===t.name));
 function eachDay(f,t,cb){let d=parse(f),e=parse(t);while(d<=e){cb(iso(d),d.getDay());d.setDate(d.getDate()+1);}}
 // Gesetzliche Feiertage Niedersachsen
@@ -282,7 +287,10 @@ function delWd(id,wd){const t=db.tours.find(t=>t.id===id);if(t&&t.wd){delete t.w
 $("fEntry").onsubmit=e=>{e.preventDefault();
   const drv=$("eDriver").value; if(!drv){msg("Bitte zuerst einen Fahrer anlegen.");return;}
   const from=$("eFrom").value; if(!from)return;
-  if(type==="Tour"){
+  if(type==="Extra"){const dur=$("eDur").value;if(!pmin(dur)){msg("Bitte eine Dauer eingeben.");return;}
+    db.entries.push({id:uid(),driver:drv,date:from,type:"Extra",tour:"Zusatzzeit",start:"00:00",pause:"",end:dur,note:$("eNote").value.trim()});
+    msg("Zusatzzeit gespeichert: "+de(from)+", "+fmtH(pmin(dur)/60)+" für "+dname(drv)+".");
+  }else if(type==="Tour"){
     const t=db.tours.find(t=>t.id===$("eTour").value);
     if(!t){msg("Bitte zuerst eine Tour anlegen.");return;}
     const stamm=tw(t,parse(from).getDay(),from).driver;
@@ -302,7 +310,7 @@ $("fEntry").onsubmit=e=>{e.preventDefault();
         const before=db.entries.length;
         db.entries=db.entries.filter(x=>!(x.driver===drv&&x.date===ds&&x.type==="Tour"));
         freed+=before-db.entries.length;
-        db.entries=db.entries.filter(x=>!(x.driver===drv&&x.date===ds&&x.type!=="Tour"));
+        db.entries=db.entries.filter(x=>!(x.driver===drv&&x.date===ds&&(x.type==="Urlaub"||x.type==="Krank")));
         db.entries.push({id:uid(),driver:drv,date:ds,type,tour:"",start:"",pause:"",end:"",note:$("eNote").value.trim()});n++;}
       d.setDate(d.getDate()+1);}
     msg(type+" gespeichert: "+n+" Tag(e)."+(freed?" "+freed+" Tour(en) sind jetzt unbesetzt, siehe unten.":""));
@@ -325,7 +333,7 @@ function renderOverview(rows){const dr=$("flDriver").value,box=$("overview");
   if(!dr){
     const list=db.drivers.map(d=>{const r=rows.filter(x=>x.driver===d.id),t=r.filter(x=>x.type==="Tour");
       const cnt={};t.forEach(x=>cnt[x.tour]=(cnt[x.tour]||0)+1);
-      return {d,t,cnt,days:new Set(t.map(x=>x.date)).size,h:t.reduce((s,x)=>s+hours(x.start,x.end,x.pause),0),
+      return {d,t,cnt,days:new Set(t.map(x=>x.date)).size,h:r.reduce((s,x)=>s+entH(x),0),
         u:r.filter(x=>x.type==="Urlaub").length,k:r.filter(x=>x.type==="Krank").length};}).filter(o=>o.t.length||o.u||o.k);
     box.innerHTML=list.length?`<table class="ov"><thead><tr><th>Fahrer</th><th>Gefahrene Touren (Anzahl Tage)</th><th>Arbeitstage</th><th>Stunden</th><th>Urlaub</th><th>Krank</th></tr></thead><tbody>
       ${list.map(o=>`<tr class="pick" onclick="pickDriver('${o.d.id}')"><td><b>${esc(full(o.d))}</b></td><td class="wrap">${Object.entries(o.cnt).sort((a,b)=>a[0].localeCompare(b[0],"de",{numeric:true})).map(([n,c])=>`<span class="tag">${esc(n)} <span class="times">×${c}</span></span>`).join(" ")}</td><td>${o.days}</td><td>${fmtH(o.h)}</td><td>${o.u||""}</td><td>${o.k||""}</td></tr>`).join("")}
@@ -333,9 +341,9 @@ function renderOverview(rows){const dr=$("flDriver").value,box=$("overview");
     return;}
   const r=rows.filter(x=>x.driver===dr),dates=[...new Set(r.map(x=>x.date))].sort();
   box.innerHTML=dates.length?`<table class="ov"><thead><tr><th>Datum</th><th>Tag</th><th>Touren</th><th>Stunden</th><th>Bemerkung</th></tr></thead><tbody>
-    ${dates.map(ds=>{const day=r.filter(x=>x.date===ds).sort((a,b)=>(a.start||"").localeCompare(b.start||""));const t=day.filter(x=>x.type==="Tour");
-      const bem=[...day.filter(x=>x.type!=="Tour").map(x=>x.type),feiertag(ds),...day.map(x=>x.note)].filter(Boolean).join(", ");
-      return `<tr><td>${de(ds)}</td><td>${WD[parse(ds).getDay()]}</td><td class="wrap">${t.map(x=>`<span class="tag">${esc(x.tour)} <span class="times">${x.start}–${x.end}</span></span>`).join(" ")}</td><td>${t.length?fmtH(t.reduce((s,x)=>s+hours(x.start,x.end,x.pause),0)):""}</td><td>${esc(bem)}</td></tr>`;}).join("")}
+    ${dates.map(ds=>{const day=r.filter(x=>x.date===ds).sort((a,b)=>(a.start||"").localeCompare(b.start||""));const t=day.filter(isWork);
+      const bem=[...day.filter(x=>!isWork(x)).map(x=>x.type),feiertag(ds),...day.map(x=>x.note)].filter(Boolean).join(", ");
+      return `<tr><td>${de(ds)}</td><td>${WD[parse(ds).getDay()]}</td><td class="wrap">${t.map(x=>`<span class="tag">${esc(x.tour)} <span class="times">${x.type==="Extra"?"+"+fmtH(entH(x)):x.start+"–"+x.end}</span></span>`).join(" ")}</td><td>${t.length?fmtH(t.reduce((s,x)=>s+entH(x),0)):""}</td><td>${esc(bem)}</td></tr>`;}).join("")}
     </tbody></table>`:'<div class="empty">Für diesen Fahrer ist in diesem Monat nichts eingetragen.</div>';}
 function pickDriver(id){$("flDriver").value=id;render();}
 const sortedTours=()=>db.tours.slice().sort((a,b)=>(a.start||"").localeCompare(b.start||"")||a.name.localeCompare(b.name,"de",{numeric:true}));
@@ -373,12 +381,12 @@ function render(){
   const tcur=$("eTour").value; $("eTour").innerHTML=sortedTours().map(t=>`<option value="${t.id}">${esc(t.name)} (${t.start}–${t.end})</option>`).join("");
   if(tcur&&db.tours.some(t=>t.id===tcur))$("eTour").value=tcur; else $("eTour").onchange();
   const rows=filtered();
-  $("entryBody").innerHTML=rows.map(e=>{const h=e.type==="Tour"?hours(e.start,e.end,e.pause):0;
+  $("entryBody").innerHTML=rows.map(e=>{const h=entH(e);
     return `<tr><td>${de(e.date)}</td><td>${WD[parse(e.date).getDay()]}${feiertag(e.date)?` <span class="pill Urlaub" title="${feiertag(e.date)}">Feiertag</span>`:""}</td><td>${esc(dname(e.driver))}</td><td><span class="pill ${e.type}">${e.type}</span></td><td>${esc(e.tour)}</td><td>${e.start||""}</td><td>${pz(e.pause)}</td><td>${e.end||""}</td><td>${h?fmtH(h):""}</td><td>${esc(e.note)}</td><td><button class="small" onclick="delEntry('${e.id}')">×</button></td></tr>`}).join("")
     ||'<tr><td colspan="11" class="empty">Keine Einträge im gewählten Zeitraum.</td></tr>';
   const tours=rows.filter(r=>r.type==="Tour");
   $("stats").innerHTML=`<div class="stat">Tourtage <b>${new Set(tours.map(r=>r.driver+r.date)).size}</b></div>
-    <div class="stat">Arbeitsstunden <b>${fmtH(tours.reduce((s,r)=>s+hours(r.start,r.end,r.pause),0))}</b></div>
+    <div class="stat">Arbeitsstunden <b>${fmtH(rows.reduce((s,r)=>s+entH(r),0))}</b></div>
     <div class="stat">Urlaubstage <b>${rows.filter(r=>r.type==="Urlaub").length}</b></div>
     <div class="stat">Krankheitstage <b>${rows.filter(r=>r.type==="Krank").length}</b></div>`;
   renderOverview(rows);
@@ -406,15 +414,15 @@ $("btnExport").onclick=()=>{
     if(!rows.length&&drivers.length>1)return;
     const hm=h=>({t:"n",v:Math.round(h*60)/1440,z:"[h]:mm"});
     const HEAD=["Kalendertag","Tag","Tour Nr.","Beginn (Uhrzeit)","Pause (Dauer)","Ende (Uhrzeit)","Dauer (Summe)","Bemerkungen"];
-    const sumOf=list=>list.filter(r=>r.type==="Tour").reduce((s,r)=>s+hours(r.start,r.end,r.pause),0);
+    const sumOf=list=>list.reduce((s,r)=>s+entH(r),0);
     const xd=ds=>{const [y,m,d]=ds.split("-").map(Number);return {t:"n",v:(Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/864e5,z:"dd\\.mm\\.yyyy"};};
     const KZ={Urlaub:"U: Urlaub",Krank:"K: Krank"};
     // je Arbeitstag: Datum nur in der ersten Zeile, darunter die weiteren Touren
     const block=list=>{const out=[];const dates=[...new Set(list.map(r=>r.date))].sort();
-      dates.forEach(ds=>{const dayRows=list.filter(r=>r.date===ds).sort((a,b)=>(a.start||"").localeCompare(b.start||""));
+      dates.forEach(ds=>{const sk=r=>r.type==="Extra"?"99":(r.start||"");const dayRows=list.filter(r=>r.date===ds).sort((a,b)=>sk(a).localeCompare(sk(b)));
         dayRows.forEach((r,i)=>{const first=i===0;
           const bem=[r.type!=="Tour"?KZ[r.type]:"",first?feiertag(ds):"",r.note].filter(Boolean).join(", ");
-          out.push(r.type==="Tour"
+          out.push(r.type==="Extra"?[first?xd(ds):"",first?WD[parse(ds).getDay()]:"","Zusatzzeit","","","",hm(entH(r)),bem]:r.type==="Tour"
             ?[first?xd(ds):"",first?WD[parse(ds).getDay()]:"",r.tour,r.start,pmin(r.pause)?hm(pmin(r.pause)/60):"",r.end,hm(hours(r.start,r.end,r.pause)),bem]
             :[first?xd(ds):"",first?WD[parse(ds).getDay()]:"","","","","","",bem]);});});
       return out;};
@@ -604,6 +612,16 @@ if(!db.seeded9){db.entries=db.entries.filter(e=>{if(e.type!=="Tour"||e.note)retu
     const wd=parse(e.date).getDay();if(!plannedOn(tr,e.date,wd))return true;const v=tw(tr,wd,e.date);
     return !(v.driver===e.driver&&v.start===e.start&&v.end===e.end&&(v.pause||"")===(e.pause||""));});
   db.seeded9=true;save();}
+// Frau Tahmasebi bis 30.11.2026, Herr Hamed ab 01.12.2026; 28.11. frei; Zusatzzeiten
+if(!db.seeded10){const ham=db.drivers.find(d=>d.name==="Hamed Mohammadi"),tah=db.drivers.find(d=>d.name==="Tahmasebi");
+  if(ham&&tah){const names=["947","1140","1357","1646/1653","3008","3153"];
+    names.forEach(n=>{const t=db.tours.find(t=>t.name===n);if(!t)return;
+      t.driver=tah.id;t.hist=(t.hist||[]).filter(h=>h.driver!==ham.id);t.hist.push({from:"2026-12-01",driver:ham.id});});
+    db.entries.forEach(e=>{if(e.driver===ham.id&&e.date<"2026-12-01"&&e.type==="Tour"&&names.includes(e.tour))e.driver=tah.id;});
+    db.skips=db.skips||[];["3008","3153"].forEach(n=>{const t=db.tours.find(t=>t.name===n);if(t&&!db.skips.includes(t.id+"|2026-11-28"))db.skips.push(t.id+"|2026-11-28");});
+    db.entries.push({id:uid(),driver:tah.id,date:"2026-11-30",type:"Extra",tour:"Zusatzzeit",start:"00:00",pause:"",end:"00:40",note:"Extra (2x20 Minuten) Mittwoch"});
+    db.entries.push({id:uid(),driver:ham.id,date:"2026-12-31",type:"Extra",tour:"Zusatzzeit",start:"00:00",pause:"",end:"00:40",note:"Extra (2x20 Minuten) Mittwoch"});}
+  db.seeded10=true;save();}
 
 // Start: aktueller Monat
 const now=new Date();
