@@ -71,6 +71,9 @@ th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
 input.name{background:transparent;border-color:transparent;font-weight:600;padding:3px 5px;min-width:0}
 input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
 .edit input.name{flex:1 1 110px}
+table.ov td.wrap{white-space:normal;min-width:200px}
+.tag{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 6px;margin:1px 0;font-size:.85rem;white-space:nowrap}
+tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
 .sel{flex:0 0 auto;width:auto;padding:3px 4px;font-size:13px}
 </style>
 </head>
@@ -78,7 +81,7 @@ input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
 <header>
   <div>
     <h1>Fahrer-Einsatzplan</h1>
-    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 12</b></div>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer · <b>Version 13</b></div>
   </div>
   <div class="row" style="flex:0 1 auto">
     <button class="primary" type="button" id="btnImport">Stundenzettel (Excel) importieren</button><input type="file" id="fileImport" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
@@ -151,6 +154,7 @@ input.name:hover,input.name:focus{border-color:var(--line);background:var(--bg)}
       <div class="sub" style="margin-top:6px">Erst den Fahrer, dann den Monat wählen: Die Excel-Liste wird sofort erstellt. Für den aktuell gewählten Monat „Excel erstellen“ antippen. „Alle Fahrer“ erstellt eine Datei mit einem Blatt je Fahrer.</div>
       <div class="msg" id="planMsg"></div>
       <div class="stats" id="stats"></div>
+      <div class="tablewrap" id="overview"></div>
       <div id="openBox" hidden>
         <h2 style="margin-top:14px;color:var(--krank)">Unbesetzte Touren <span id="openCount"></span></h2>
         <div class="sub" style="margin-bottom:6px">Antippen, dann nur noch den Fahrer wählen.</div>
@@ -309,6 +313,24 @@ function filtered(){const dr=$("flDriver").value,f=$("flFrom").value,t=$("flTo")
     .sort((a,b)=>a.date.localeCompare(b.date)||(a.start||"").localeCompare(b.start||""));}
 const dname=id=>{const d=db.drivers.find(d=>d.id===id);return d?full(d):"?";};
 
+// Übersicht: wer hat welche Touren gefahren
+function renderOverview(rows){const dr=$("flDriver").value,box=$("overview");
+  if(!dr){
+    const list=db.drivers.map(d=>{const r=rows.filter(x=>x.driver===d.id),t=r.filter(x=>x.type==="Tour");
+      const cnt={};t.forEach(x=>cnt[x.tour]=(cnt[x.tour]||0)+1);
+      return {d,t,cnt,days:new Set(t.map(x=>x.date)).size,h:t.reduce((s,x)=>s+hours(x.start,x.end,x.pause),0),
+        u:r.filter(x=>x.type==="Urlaub").length,k:r.filter(x=>x.type==="Krank").length};}).filter(o=>o.t.length||o.u||o.k);
+    box.innerHTML=list.length?`<table class="ov"><thead><tr><th>Fahrer</th><th>Gefahrene Touren (Anzahl Tage)</th><th>Arbeitstage</th><th>Stunden</th><th>Urlaub</th><th>Krank</th></tr></thead><tbody>
+      ${list.map(o=>`<tr class="pick" onclick="pickDriver('${o.d.id}')"><td><b>${esc(full(o.d))}</b></td><td class="wrap">${Object.entries(o.cnt).sort((a,b)=>a[0].localeCompare(b[0],"de",{numeric:true})).map(([n,c])=>`<span class="tag">${esc(n)} <span class="times">×${c}</span></span>`).join(" ")}</td><td>${o.days}</td><td>${fmtH(o.h)}</td><td>${o.u||""}</td><td>${o.k||""}</td></tr>`).join("")}
+      </tbody></table><div class="sub" style="margin-top:4px">Fahrer antippen für seine Tage im Einzelnen.</div>`:'<div class="empty">In diesem Monat ist noch nichts eingetragen.</div>';
+    return;}
+  const r=rows.filter(x=>x.driver===dr),dates=[...new Set(r.map(x=>x.date))].sort();
+  box.innerHTML=dates.length?`<table class="ov"><thead><tr><th>Datum</th><th>Tag</th><th>Touren</th><th>Stunden</th><th>Bemerkung</th></tr></thead><tbody>
+    ${dates.map(ds=>{const day=r.filter(x=>x.date===ds).sort((a,b)=>(a.start||"").localeCompare(b.start||""));const t=day.filter(x=>x.type==="Tour");
+      const bem=[...day.filter(x=>x.type!=="Tour").map(x=>x.type),feiertag(ds),...day.map(x=>x.note)].filter(Boolean).join(", ");
+      return `<tr><td>${de(ds)}</td><td>${WD[parse(ds).getDay()]}</td><td class="wrap">${t.map(x=>`<span class="tag">${esc(x.tour)} <span class="times">${x.start}–${x.end}</span></span>`).join(" ")}</td><td>${t.length?fmtH(t.reduce((s,x)=>s+hours(x.start,x.end,x.pause),0)):""}</td><td>${esc(bem)}</td></tr>`;}).join("")}
+    </tbody></table>`:'<div class="empty">Für diesen Fahrer ist in diesem Monat nichts eingetragen.</div>';}
+function pickDriver(id){$("flDriver").value=id;render();}
 const sortedTours=()=>db.tours.slice().sort((a,b)=>(a.start||"").localeCompare(b.start||"")||a.name.localeCompare(b.name,"de",{numeric:true}));
 function render(){
   $("driverList").innerHTML=db.drivers.map(d=>`<li><select class="small" style="flex:0 0 76px;padding:3px 4px;font-size:13px" aria-label="Anrede" onchange="setAnrede('${d.id}',this.value)">${["","Herr","Frau"].map(a=>`<option value="${a}"${(d.anrede||"")===a?" selected":""}>${a||"–"}</option>`).join("")}</select><input class="name" style="flex:1" value="${esc(d.name)}" aria-label="Name" onchange="renameDriver('${d.id}',this.value)"><button class="small" id="del-${d.id}" onclick="delDriver('${d.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Fahrer. Namen oben eintragen.</li>';
@@ -352,6 +374,7 @@ function render(){
     <div class="stat">Arbeitsstunden <b>${fmtH(tours.reduce((s,r)=>s+hours(r.start,r.end,r.pause),0))}</b></div>
     <div class="stat">Urlaubstage <b>${rows.filter(r=>r.type==="Urlaub").length}</b></div>
     <div class="stat">Krankheitstage <b>${rows.filter(r=>r.type==="Krank").length}</b></div>`;
+  renderOverview(rows);
   const open=openSlots();
   $("openBox").hidden=!open.length;
   $("openCount").textContent="("+open.length+")";
