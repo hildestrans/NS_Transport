@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fahrer-Einsatzplan N&amp;S</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: Arbeitsfläche mit Stammdaten links, Einträge rechts; auf dem Handy untereinander */
+:root{
+  --bg:#f3f5f4; --panel:#ffffff; --fg:#1d2624; --muted:#5d6b67; --line:#d8dfdc;
+  --accent:#0f7a63; --accent-fg:#ffffff;
+  --tour:#0f7a63; --urlaub:#b7791f; --krank:#c0392b;
+  --display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a19; --panel:#1c2422; --fg:#e6ecea; --muted:#9aa8a4; --line:#2e3a37;
+  --accent:#3fbf9c; --accent-fg:#0b1513; --tour:#3fbf9c; --urlaub:#e0a84a; --krank:#e8695a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a19; --panel:#1c2422; --fg:#e6ecea; --muted:#9aa8a4; --line:#2e3a37;
+  --accent:#3fbf9c; --accent-fg:#0b1513; --tour:#3fbf9c; --urlaub:#e0a84a; --krank:#e8695a; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;max-width:1200px;margin:0 auto 18px}
+h1{font:700 1.7rem/1.1 var(--display);margin:0;letter-spacing:.01em;text-wrap:balance}
+h2{font:700 1.1rem/1.2 var(--display);margin:0 0 10px;text-transform:uppercase;letter-spacing:.06em}
+.sub{color:var(--muted);font-size:.9rem}
+.grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px;max-width:1200px;margin:0 auto}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+input,select{font:15px var(--body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0;width:100%}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.row>*{flex:1 1 120px}
+button{font:600 14px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;padding:8px 12px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button.small{padding:3px 8px;font-size:12px}
+button:hover{filter:brightness(.96)}
+ul.list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+ul.list li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:var(--bg)}
+ul.list li span{min-width:0;overflow-wrap:anywhere}
+.times{color:var(--muted);font-variant-numeric:tabular-nums;font-size:.88rem}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;border:0;border-radius:0;background:transparent}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.tablewrap{overflow-x:auto;margin-top:12px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.92rem}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.78rem;font-weight:600;border:1px solid currentColor}
+.pill.Tour{color:var(--tour)} .pill.Urlaub{color:var(--urlaub)} .pill.Krank{color:var(--krank)}
+.empty{color:var(--muted);padding:14px 4px}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.stat{background:var(--bg);border-radius:6px;padding:6px 10px;font-size:.85rem}
+.stat b{font-variant-numeric:tabular-nums}
+.msg{font-size:.88rem;color:var(--accent);min-height:1.2em;margin-top:6px}
+.check{flex-direction:row;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:.9rem}
+.check input{width:auto}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Fahrer-Einsatzplan</h1>
+    <div class="sub">N&amp;S Transport GbR · Touren, Urlaub und Krankheit je Fahrer</div>
+  </div>
+  <div class="row" style="flex:0 1 auto">
+    <button id="btnBackup">Sicherung speichern</button>
+    <label class="check" style="cursor:pointer"><button type="button" id="btnRestore">Sicherung laden</button><input type="file" id="fileRestore" accept=".json" hidden></label>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="col">
+    <section class="panel">
+      <h2>Fahrer</h2>
+      <form id="fDriver" class="row">
+        <input id="driverName" placeholder="Name des Fahrers" required>
+        <button class="primary" style="flex:0 0 auto">Hinzufügen</button>
+      </form>
+      <ul class="list" id="driverList"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Touren</h2>
+      <form id="fTour" class="row">
+        <label style="flex-basis:100%">Tourname<input id="tourName" placeholder="z. B. Tour 3 Hildesheim-Süd" required></label>
+        <label>Beginn<input id="tourStart" type="time" value="07:00" required></label>
+        <label>Ende<input id="tourEnd" type="time" value="15:30" required></label>
+        <button class="primary" style="flex:0 0 auto">Hinzufügen</button>
+      </form>
+      <ul class="list" id="tourList"></ul>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="panel">
+      <h2>Neuer Eintrag</h2>
+      <div class="seg" role="group" aria-label="Art">
+        <button type="button" data-type="Tour" aria-pressed="true">Tour</button>
+        <button type="button" data-type="Urlaub" aria-pressed="false">Urlaub</button>
+        <button type="button" data-type="Krank" aria-pressed="false">Krank</button>
+      </div>
+      <form id="fEntry" class="row" style="margin-top:12px">
+        <label>Fahrer<select id="eDriver" required></select></label>
+        <label id="lFrom">Datum<input id="eFrom" type="date" required></label>
+        <label id="lTo" hidden>bis<input id="eTo" type="date"></label>
+        <label id="lTour">Tour<select id="eTour"></select></label>
+        <label id="lStart">Beginn<input id="eStart" type="time"></label>
+        <label id="lEnd">Ende<input id="eEnd" type="time"></label>
+        <label style="flex-basis:100%">Notiz<input id="eNote" placeholder="optional"></label>
+        <label class="check" id="lSkip" hidden><input type="checkbox" id="eSkip" checked> Samstag und Sonntag auslassen</label>
+        <button class="primary" style="flex:0 0 auto">Eintrag speichern</button>
+      </form>
+      <div class="msg" id="entryMsg"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Einträge</h2>
+      <div class="row">
+        <label>Fahrer<select id="flDriver"></select></label>
+        <label>Von<input id="flFrom" type="date"></label>
+        <label>Bis<input id="flTo" type="date"></label>
+        <button class="primary" id="btnExport" style="flex:0 0 auto">Excel exportieren</button>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Datum</th><th>Tag</th><th>Fahrer</th><th>Art</th><th>Tour</th><th>Beginn</th><th>Ende</th><th>Std.</th><th>Notiz</th><th></th></tr></thead>
+          <tbody id="entryBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const KEY="ns_einsatzplan_v1";
+const WD=["So","Mo","Di","Mi","Do","Fr","Sa"];
+let db={drivers:[],tours:[],entries:[]};
+try{const s=localStorage.getItem(KEY); if(s) db=JSON.parse(s);}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){}}
+const $=id=>document.getElementById(id);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const parse=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);};
+const de=s=>{const [y,m,d]=s.split("-");return d+"."+m+"."+y;};
+function hours(a,b){if(!a||!b)return 0;const[h1,m1]=a.split(":").map(Number),[h2,m2]=b.split(":").map(Number);let t=(h2*60+m2)-(h1*60+m1);if(t<0)t+=1440;return Math.round(t/60*100)/100;}
+const fmtH=h=>h.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+let type="Tour";
+document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{
+  type=b.dataset.type;
+  document.querySelectorAll(".seg button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  const isTour=type==="Tour";
+  ["lTour","lStart","lEnd"].forEach(i=>$(i).hidden=!isTour);
+  $("lTo").hidden=isTour; $("lSkip").hidden=isTour;
+  $("lFrom").firstChild.textContent=isTour?"Datum":"Von";
+});
+
+// Fahrer
+$("fDriver").onsubmit=e=>{e.preventDefault();const n=$("driverName").value.trim();if(!n)return;
+  if(db.drivers.some(d=>d.name.toLowerCase()===n.toLowerCase()))return;
+  db.drivers.push({id:uid(),name:n});$("driverName").value="";save();render();};
+// Touren
+$("fTour").onsubmit=e=>{e.preventDefault();const n=$("tourName").value.trim();if(!n)return;
+  db.tours.push({id:uid(),name:n,start:$("tourStart").value,end:$("tourEnd").value});$("tourName").value="";save();render();};
+$("eTour").onchange=()=>{const t=db.tours.find(t=>t.id===$("eTour").value);if(t){$("eStart").value=t.start;$("eEnd").value=t.end;}};
+
+// Eintrag
+$("fEntry").onsubmit=e=>{e.preventDefault();
+  const drv=$("eDriver").value; if(!drv){msg("Bitte zuerst einen Fahrer anlegen.");return;}
+  const from=$("eFrom").value; if(!from)return;
+  if(type==="Tour"){
+    const t=db.tours.find(t=>t.id===$("eTour").value);
+    if(!t){msg("Bitte zuerst eine Tour anlegen.");return;}
+    db.entries.push({id:uid(),driver:drv,date:from,type,tour:t.name,start:$("eStart").value,end:$("eEnd").value,note:$("eNote").value.trim()});
+    msg("Gespeichert: "+de(from)+", "+t.name+".");
+  }else{
+    const to=$("eTo").value||from; let d=parse(from),end=parse(to),n=0;
+    if(end<d){msg("Das Enddatum liegt vor dem Startdatum.");return;}
+    while(d<=end){const wd=d.getDay();
+      if(!($("eSkip").checked&&(wd===0||wd===6))){
+        const ds=iso(d);
+        db.entries=db.entries.filter(x=>!(x.driver===drv&&x.date===ds&&x.type!=="Tour"));
+        db.entries.push({id:uid(),driver:drv,date:ds,type,tour:"",start:"",end:"",note:$("eNote").value.trim()});n++;}
+      d.setDate(d.getDate()+1);}
+    msg(type+" gespeichert: "+n+" Tag(e).");
+  }
+  $("eNote").value="";save();render();};
+function msg(t){$("entryMsg").textContent=t;}
+
+function delDriver(id){if(db.entries.some(e=>e.driver===id)&&!$("del-"+id).dataset.armed){const b=$("del-"+id);b.dataset.armed=1;b.textContent="Wirklich? Einträge werden gelöscht";return;}
+  db.drivers=db.drivers.filter(d=>d.id!==id);db.entries=db.entries.filter(e=>e.driver!==id);save();render();}
+function delTour(id){db.tours=db.tours.filter(t=>t.id!==id);save();render();}
+function delEntry(id){db.entries=db.entries.filter(e=>e.id!==id);save();render();}
+
+function filtered(){const dr=$("flDriver").value,f=$("flFrom").value,t=$("flTo").value;
+  return db.entries.filter(e=>(!dr||e.driver===dr)&&(!f||e.date>=f)&&(!t||e.date<=t))
+    .sort((a,b)=>a.date.localeCompare(b.date)||(a.start||"").localeCompare(b.start||""));}
+const dname=id=>(db.drivers.find(d=>d.id===id)||{}).name||"?";
+
+function render(){
+  $("driverList").innerHTML=db.drivers.map(d=>`<li><span>${esc(d.name)}</span><button class="small" id="del-${d.id}" onclick="delDriver('${d.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Fahrer. Namen oben eintragen.</li>';
+  $("tourList").innerHTML=db.tours.map(t=>`<li><span>${esc(t.name)} <span class="times">${t.start}–${t.end}</span></span><button class="small" onclick="delTour('${t.id}')">Löschen</button></li>`).join("")||'<li class="empty">Noch keine Touren. Name und Zeiten oben eintragen.</li>';
+  const opts=db.drivers.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
+  const cur=$("eDriver").value; $("eDriver").innerHTML=opts; if(cur)$("eDriver").value=cur;
+  const fcur=$("flDriver").value; $("flDriver").innerHTML='<option value="">Alle Fahrer</option>'+opts; $("flDriver").value=fcur;
+  const tcur=$("eTour").value; $("eTour").innerHTML=db.tours.map(t=>`<option value="${t.id}">${esc(t.name)} (${t.start}–${t.end})</option>`).join("");
+  if(tcur&&db.tours.some(t=>t.id===tcur))$("eTour").value=tcur; else $("eTour").onchange();
+  const rows=filtered();
+  $("entryBody").innerHTML=rows.map(e=>{const h=e.type==="Tour"?hours(e.start,e.end):0;
+    return `<tr><td>${de(e.date)}</td><td>${WD[parse(e.date).getDay()]}</td><td>${esc(dname(e.driver))}</td><td><span class="pill ${e.type}">${e.type}</span></td><td>${esc(e.tour)}</td><td>${e.start||""}</td><td>${e.end||""}</td><td>${h?fmtH(h):""}</td><td>${esc(e.note)}</td><td><button class="small" onclick="delEntry('${e.id}')">×</button></td></tr>`}).join("")
+    ||'<tr><td colspan="10" class="empty">Keine Einträge im gewählten Zeitraum.</td></tr>';
+  const tours=rows.filter(r=>r.type==="Tour");
+  $("stats").innerHTML=`<div class="stat">Tourtage <b>${new Set(tours.map(r=>r.driver+r.date)).size}</b></div>
+    <div class="stat">Arbeitsstunden <b>${fmtH(tours.reduce((s,r)=>s+hours(r.start,r.end),0))}</b></div>
+    <div class="stat">Urlaubstage <b>${rows.filter(r=>r.type==="Urlaub").length}</b></div>
+    <div class="stat">Krankheitstage <b>${rows.filter(r=>r.type==="Krank").length}</b></div>`;
+}
+["flDriver","flFrom","flTo"].forEach(i=>$(i).onchange=render);
+
+// Excel: ein Sheet je Fahrer
+$("btnExport").onclick=()=>{
+  if(typeof XLSX==="undefined"){alert("Excel-Bibliothek nicht geladen. Bitte Internetverbindung prüfen.");return;}
+  const rowsAll=filtered(); const wb=XLSX.utils.book_new();
+  const drivers=$("flDriver").value?db.drivers.filter(d=>d.id===$("flDriver").value):db.drivers;
+  const f=$("flFrom").value,t=$("flTo").value;
+  const zeitraum=(f?de(f):"Anfang")+" – "+(t?de(t):"heute");
+  const summary=[["N&S Transport GbR – Übersicht"],["Zeitraum",zeitraum],[],["Fahrer","Tourtage","Arbeitsstunden","Urlaubstage","Krankheitstage"]];
+  const used=new Set();
+  drivers.forEach(d=>{
+    const rows=rowsAll.filter(r=>r.driver===d.id);
+    const aoa=[["Fahrer",d.name],["Zeitraum",zeitraum],[],["Datum","Wochentag","Art","Tour","Beginn","Ende","Stunden","Notiz"]];
+    rows.forEach(r=>{const h=r.type==="Tour"?hours(r.start,r.end):"";
+      aoa.push([parse(r.date),WD[parse(r.date).getDay()],r.type,r.tour,r.start,r.end,h,r.note]);});
+    const tr=rows.filter(r=>r.type==="Tour");
+    const sumH=Math.round(tr.reduce((s,r)=>s+hours(r.start,r.end),0)*100)/100;
+    const days=new Set(tr.map(r=>r.date)).size, u=rows.filter(r=>r.type==="Urlaub").length, k=rows.filter(r=>r.type==="Krank").length;
+    aoa.push([],["Summe Arbeitsstunden","","","","","",sumH],["Tourtage",days],["Urlaubstage",u],["Krankheitstage",k]);
+    summary.push([d.name,days,sumH,u,k]);
+    const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:"dd.mm.yyyy"});
+    ws["!cols"]=[{wch:20},{wch:10},{wch:9},{wch:26},{wch:8},{wch:8},{wch:9},{wch:30}];
+    let n=d.name.replace(/[\\\/\?\*\[\]:]/g,"").slice(0,31)||"Fahrer",base=n,i=2;
+    while(used.has(n)){n=base.slice(0,28)+" "+i++;} used.add(n);
+    XLSX.utils.book_append_sheet(wb,ws,n);
+  });
+  const ws0=XLSX.utils.aoa_to_sheet(summary); ws0["!cols"]=[{wch:24},{wch:10},{wch:15},{wch:12},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws0,"Übersicht");
+  wb.SheetNames.unshift(wb.SheetNames.pop());
+  XLSX.writeFile(wb,"Einsatzplan_"+(f||"start")+"_bis_"+(t||iso(new Date()))+".xlsx");
+};
+
+// Sicherung
+$("btnBackup").onclick=()=>{const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:"application/json"}));
+  a.download="Einsatzplan_Sicherung_"+iso(new Date())+".json";a.click();};
+$("btnRestore").onclick=()=>$("fileRestore").click();
+$("fileRestore").onchange=e=>{const fl=e.target.files[0];if(!fl)return;const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(d.drivers&&d.tours&&d.entries){db=d;save();render();}}catch(x){alert("Datei ist keine gültige Sicherung.");}};r.readAsText(fl);};
+
+// Start: aktueller Monat
+const now=new Date();
+$("eFrom").value=iso(now);
+$("flFrom").value=iso(new Date(now.getFullYear(),now.getMonth(),1));
+$("flTo").value=iso(new Date(now.getFullYear(),now.getMonth()+1,0));
+render();
+</script>
+</body>
+</html>
