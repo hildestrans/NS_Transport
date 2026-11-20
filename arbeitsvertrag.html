@@ -67,7 +67,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
 <body>
 <div class="noprint" style="max-width:1300px;margin:0 auto">
   <h1>Arbeitsvertrag für Fahrer</h1>
-  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 3</div>
+  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 4</div>
 </div>
 
 <div class="wrap">
@@ -119,10 +119,10 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
       <label>Mobil<input id="fTel" value="+49 157 77 11 66 88"></label>
       <label>Telefon<input id="fTel2" value="+49 176 34 12 00 84"></label>
       <label>E-Mail<input id="fMail" value="hildes.trans@gmail.com"></label>
-      <label>Bank<input id="fBank" value="Sparkasse Hildesheim, Goslar, Peine"></label>
-      <label>Kontoinhaber<input id="fInh" value="Nader Tavana"></label>
-      <label>Firmen-IBAN<input id="fIban" value="DE29 2595 0130 0057 1406 38"></label>
-      <label>BIC<input id="fBic" value="NOLADE21HIK"></label>
+      <label>Bank<input id="fBank" value="Volksbank eG Hildesheim-Lehrte-Pattensen"></label>
+      <label>Kontoinhaber<input id="fInh" value="N&amp;S Transport GbR"></label>
+      <label>Firmen-IBAN<input id="fIban" value="DE06 2519 3331 1202 3620 00"></label>
+      <label>BIC<input id="fBic" value="GENODEF1PAT"></label>
       <label>Steuernummer<input id="fStnr" value="30/144/22578"></label>
       <label>USt-IdNr.<input id="fUst" value="DE35700472"></label>
     </details>
@@ -288,7 +288,9 @@ ${art!=="vollzeit"?`<tr><td>Weitere Beschäftigungen</td><td>☐ keine &nbsp; �
 function leeren(){if(!confirm("Alle Felder leeren?"))return;
   ["vorname","nachname","strasse","plz","beginn","lohn","iban","steuerid","kasse","geb","svnr"].forEach(id=>$(id).value="");
   $("art").value="teilzeit";$("ort").value="Hildesheim";$("std").value="20";$("tage").value="5";$("samstag").checked=true;$("vart").selectedIndex=0;render();}
-try{const o=JSON.parse(localStorage.getItem(KEY)||"{}");F.forEach(id=>{if(o[id]===undefined)return;const e=$(id);if(e.type==="checkbox")e.checked=o[id];else e.value=o[id];});}catch(e){}
+try{const o=JSON.parse(localStorage.getItem(KEY)||"{}");
+  // alte Sparkasse-Bankverbindung durch das neue Firmenkonto (Volksbank) ersetzen
+  if(/sparkasse/i.test(o.fBank||"")){delete o.fBank;delete o.fInh;delete o.fIban;delete o.fBic;}F.forEach(id=>{if(o[id]===undefined)return;const e=$(id);if(e.type==="checkbox")e.checked=o[id];else e.value=o[id];});}catch(e){}
 // Vertragsart: passende Standardwerte
 $("art").addEventListener("change",()=>{const a=v("art");
   if(a==="vollzeit"){$("std").value="40";$("tage").value="5";}
