@@ -65,7 +65,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
 <body>
 <div class="noprint" style="max-width:1300px;margin:0 auto">
   <h1>Arbeitsvertrag für Fahrer</h1>
-  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 11</div>
+  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 12</div>
 </div>
 
 <div class="wrap">
@@ -84,10 +84,10 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
 
     <h2>Vertrag</h2>
     <div class="row">
-      <label>Vertragsnummer<input id="vnr" placeholder="NS-DR-011"></label>
+      <label>Vertragsnummer<input id="vnr" placeholder="NS-DR-013"></label>
       <label>Vertragsdatum<input id="vdat" type="date"></label>
     </div>
-    <div class="hint" style="margin:-4px 0 8px">Nummer wird nach jedem Ausdruck automatisch um 1 erhöht (letzte bekannte: NS-DR-010).</div>
+    <div class="hint" style="margin:-4px 0 8px">Nummer wird nach jedem Ausdruck automatisch um 1 erhöht (letzte bekannte: NS-DR-012, Herr Keyvan Rahimi).</div>
 
     <h2>Vertragsart</h2>
     <label>Art des Arbeitsvertrags<select id="art">
@@ -304,12 +304,12 @@ try{const o=JSON.parse(localStorage.getItem(KEY)||"{}");
   if(/sparkasse/i.test(o.fBank||"")){delete o.fBank;delete o.fInh;delete o.fIban;delete o.fBic;}F.forEach(id=>{if(o[id]===undefined)return;const e=$(id);if(e.type==="checkbox")e.checked=o[id];else e.value=o[id];});}catch(e){}
 // Vertragsnummer und Datum
 const NRKEY="ns_arbeitsvertrag_nr";
-const nextNr=()=>{let n=10;try{n=+(localStorage.getItem(NRKEY)||10);}catch(e){}return "NS-DR-"+String(n+1).padStart(3,"0");};
-{const m=v("vnr").match(/(\d+)\s*$/);let last=10;try{last=+(localStorage.getItem(NRKEY)||10);}catch(e){}
+const nextNr=()=>{let n=12;try{n=Math.max(12,+(localStorage.getItem(NRKEY)||12));}catch(e){}return "NS-DR-"+String(n+1).padStart(3,"0");};
+{const m=v("vnr").match(/(\d+)\s*$/);let last=12;try{last=+(localStorage.getItem(NRKEY)||12);}catch(e){}
   if(!v("vnr")||(m&&+m[1]<=last)){$("vnr").value=nextNr();$("vdat").value=new Date().toISOString().slice(0,10);}}
 if(!$("vdat").value)$("vdat").value=new Date().toISOString().slice(0,10);
 window.addEventListener("afterprint",()=>{const m=v("vnr").match(/(\d+)\s*$/);if(!m)return;
-  try{const cur=+(localStorage.getItem(NRKEY)||10);if(+m[1]>cur)localStorage.setItem(NRKEY,String(+m[1]));}catch(e){}});
+  try{const cur=+(localStorage.getItem(NRKEY)||12);if(+m[1]>cur)localStorage.setItem(NRKEY,String(+m[1]));}catch(e){}});
 // Vertragsart: passende Standardwerte
 $("art").addEventListener("change",()=>{const a=v("art");
   if(a==="vollzeit"){$("std").value="40";$("tage").value="5";}
