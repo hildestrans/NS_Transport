@@ -67,7 +67,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
 <body>
 <div class="noprint" style="max-width:1300px;margin:0 auto">
   <h1>Arbeitsvertrag für Fahrer</h1>
-  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 4</div>
+  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 5</div>
 </div>
 
 <div class="wrap">
@@ -124,7 +124,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
       <label>Firmen-IBAN<input id="fIban" value="DE06 2519 3331 1202 3620 00"></label>
       <label>BIC<input id="fBic" value="GENODEF1PAT"></label>
       <label>Steuernummer<input id="fStnr" value="30/144/22578"></label>
-      <label>USt-IdNr.<input id="fUst" value="DE35700472"></label>
+      <label>USt-IdNr.<input id="fUst" value="DE465339328"></label>
     </details>
 
     <button type="button" onclick="window.print()">Drucken / als PDF speichern</button>
@@ -290,6 +290,7 @@ function leeren(){if(!confirm("Alle Felder leeren?"))return;
   $("art").value="teilzeit";$("ort").value="Hildesheim";$("std").value="20";$("tage").value="5";$("samstag").checked=true;$("vart").selectedIndex=0;render();}
 try{const o=JSON.parse(localStorage.getItem(KEY)||"{}");
   // alte Sparkasse-Bankverbindung durch das neue Firmenkonto (Volksbank) ersetzen
+  if(o.fUst==="DE35700472")delete o.fUst;
   if(/sparkasse/i.test(o.fBank||"")){delete o.fBank;delete o.fInh;delete o.fIban;delete o.fBic;}F.forEach(id=>{if(o[id]===undefined)return;const e=$(id);if(e.type==="checkbox")e.checked=o[id];else e.value=o[id];});}catch(e){}
 // Vertragsart: passende Standardwerte
 $("art").addEventListener("change",()=>{const a=v("art");
