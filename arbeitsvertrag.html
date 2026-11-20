@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arbeitsvertrag Fahrer – N&amp;S Transport</title>
+<style>
+:root{--bg:#f3f5f4;--panel:#fff;--fg:#1d2624;--muted:#5d6b67;--line:#d8dfdc;--accent:#0f7a63;--warn:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 "Segoe UI",Arial,sans-serif;padding:20px 16px 40px}
+h1{font-size:1.5rem;margin:0 0 4px}
+.sub{color:var(--muted);font-size:.88rem}
+.wrap{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:18px;max-width:1300px;margin:16px auto 0}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+.panel h2{font-size:.95rem;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px;color:var(--accent)}
+.panel h2:first-child{margin-top:0}
+label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted);font-weight:600;margin-bottom:8px}
+input,select{font:15px inherit;font-family:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.hint{font-size:.78rem;font-weight:400;color:var(--muted)}
+.bad{color:var(--warn)!important;font-weight:600}
+input.err{border-color:var(--warn)}
+button{font:600 14px inherit;font-family:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;padding:10px 14px;cursor:pointer;width:100%;margin-top:6px}
+button.sec{background:#fff;color:var(--accent)}
+details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0}
+/* Vertrag (A4) */
+.doc{background:#fff;color:#000;max-width:210mm;margin:0 auto;padding:18mm 20mm;font:10.5pt/1.45 "Times New Roman",Georgia,serif;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.doc h1{font-size:16pt;text-align:center;margin:0 0 4mm;letter-spacing:.04em}
+.doc h3{font-size:11pt;margin:5mm 0 1.5mm}
+.doc p{margin:0 0 2mm;text-align:justify}
+.doc ol{margin:0 0 2mm;padding-left:6mm}.doc li{margin-bottom:1mm;text-align:justify}
+.doc .parties{display:grid;grid-template-columns:1fr 1fr;gap:6mm;margin:4mm 0}
+.doc .fill{font-weight:bold}
+.doc .empty{background:#fff3cd;padding:0 3px}
+.doc table{border-collapse:collapse;width:100%;margin:2mm 0 4mm}
+.doc td{border:1px solid #999;padding:2mm 3mm;vertical-align:top}.doc td:first-child{width:45%;font-weight:bold}
+.sig{display:grid;grid-template-columns:1fr 1fr;gap:12mm;margin-top:14mm}
+.sig div{border-top:1px solid #000;padding-top:1.5mm;font-size:9.5pt}
+.pb{break-before:page;page-break-before:always}
+@media print{
+  body{background:#fff;padding:0}
+  .noprint,.panel.form{display:none!important}
+  .wrap{display:block;margin:0}
+  .doc{box-shadow:none;padding:0;max-width:none}
+  .doc .empty{background:none}
+  @page{size:A4;margin:16mm 18mm}
+}
+</style>
+</head>
+<body>
+<div class="noprint" style="max-width:1300px;margin:0 auto">
+  <h1>Arbeitsvertrag für Fahrer</h1>
+  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 1</div>
+</div>
+
+<div class="wrap">
+  <section class="panel form noprint">
+    <h2>Mitarbeiter</h2>
+    <div class="row">
+      <label style="flex:0 0 90px">Anrede<select id="anrede"><option>Herr</option><option>Frau</option><option value="">–</option></select></label>
+      <label>Vorname<input id="vorname" autocomplete="off"></label>
+    </div>
+    <label>Nachname<input id="nachname" autocomplete="off"></label>
+    <label>Straße, Hausnummer<input id="strasse" autocomplete="off"></label>
+    <div class="row">
+      <label style="flex:0 0 100px">PLZ<input id="plz" inputmode="numeric" maxlength="5"></label>
+      <label>Ort<input id="ort" value="Hildesheim"></label>
+    </div>
+
+    <h2>Vertragsart</h2>
+    <label>Art des Arbeitsvertrags<select id="art">
+      <option value="vollzeit">Vollzeit</option>
+      <option value="teilzeit" selected>Teilzeit</option>
+      <option value="minijob">Minijob (geringfügig, bis 603 €/Monat)</option>
+    </select><span class="hint" id="artHint"></span></label>
+
+    <h2>Beginn und Lohn</h2>
+    <label>Beginn des Arbeitsverhältnisses<input id="beginn" type="date"></label>
+    <label>Stundenlohn brutto (€)<input id="lohn" inputmode="decimal"><span class="hint" id="lohnHint"></span></label>
+
+    <h2>Bank, Steuer, Versicherung</h2>
+    <label>IBAN<input id="iban" autocomplete="off" placeholder="DE00 0000 0000 0000 0000 00"><span class="hint" id="ibanHint"></span></label>
+    <label>Steuer-Identifikationsnummer<input id="steuerid" inputmode="numeric" maxlength="14" placeholder="11 Ziffern"><span class="hint" id="stHint"></span></label>
+    <label>Krankenkasse<input id="kasse" list="kassen" placeholder="z. B. AOK Niedersachsen"><datalist id="kassen"><option>AOK Niedersachsen</option><option>IKK classic</option><option>Techniker Krankenkasse (TK)</option><option>BARMER</option><option>DAK-Gesundheit</option><option>KKH</option><option>hkk</option><option>BKK</option></datalist></label>
+    <label>Art der Krankenversicherung<select id="vart">
+      <option>gesetzlich pflichtversichert</option>
+      <option>gesetzlich freiwillig versichert</option>
+      <option>privat versichert</option>
+    </select></label>
+
+    <details>
+      <summary>Weitere Angaben (vorausgefüllt)</summary>
+      <label>Geburtsdatum <span class="hint">(optional)</span><input id="geb" type="date"></label>
+      <label>Sozialversicherungsnummer <span class="hint">(optional)</span><input id="svnr" autocomplete="off"></label>
+      <div class="row">
+        <label>Wochenstunden<input id="std" type="number" min="1" max="48" step="0.5" value="20"></label>
+        <label>Arbeitstage pro Woche<select id="tage"><option>5</option><option>4</option><option>3</option><option>6</option></select></label>
+      </div>
+      <label class="hint" style="flex-direction:row;gap:6px;align-items:center"><input id="nacht" type="checkbox" style="width:auto"> Regelmäßige Nachtarbeit (23–6 Uhr, z. B. Tour 843 P) → 25 % Zuschlag</label>
+      <label class="hint" style="flex-direction:row;gap:6px;align-items:center"><input id="samstag" type="checkbox" style="width:auto" checked> Samstagsarbeit im Wechsel möglich</label>
+      <label>Ort und Datum der Unterschrift<input id="unterort" value="Hildesheim"></label>
+    </details>
+
+    <button type="button" onclick="window.print()">Drucken / als PDF speichern</button>
+    <button type="button" class="sec" onclick="leeren()">Neuer Vertrag (Felder leeren)</button>
+    <div class="hint" style="margin-top:10px">Tipp: Beim Drucken „Als PDF speichern“ wählen. Gelb markierte Stellen im Vertrag sind noch leer.</div>
+  </section>
+
+  <article class="doc" id="doc"></article>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const F=["art","anrede","vorname","nachname","strasse","plz","ort","beginn","lohn","iban","steuerid","kasse","vart","geb","svnr","std","tage","nacht","samstag","unterort"];
+const KEY="ns_arbeitsvertrag_v1";
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const de=s=>{if(!s)return"";const[y,m,d]=s.split("-");return d+"."+m+"."+y;};
+const num=v=>parseFloat(String(v||"").replace(",","."));
+const eur=v=>isNaN(v)?"":v.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+// Gesetzlicher Mindestlohn (MiLoG) je Zeitraum
+const MILO=[["2027-01-01",14.60],["2026-01-01",13.90],["2025-01-01",12.82]];
+const MINI=[["2027-01-01",633],["2026-01-01",603],["2025-01-01",556]];
+const miniGrenze=ds=>{ds=ds||new Date().toISOString().slice(0,10);for(const[f,v]of MINI)if(ds>=f)return v;return 556;};
+const milo=ds=>{ds=ds||new Date().toISOString().slice(0,10);for(const[f,v]of MILO)if(ds>=f)return v;return 12.82;};
+const v=id=>{const e=$(id);return e.type==="checkbox"?e.checked:e.value.trim();};
+const fill=(x,ph)=>x?`<span class="fill">${esc(x)}</span>`:`<span class="empty">${ph||"________________"}</span>`;
+function ibanOk(s){s=s.replace(/\s/g,"").toUpperCase();if(!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(s))return false;
+  const r=(s.slice(4)+s.slice(0,4)).replace(/[A-Z]/g,c=>c.charCodeAt(0)-55);let m=0;for(const ch of r)m=(m*10+ +ch)%97;return m===1;}
+const ibanFmt=s=>s.replace(/\s/g,"").toUpperCase().replace(/(.{4})/g,"$1 ").trim();
+
+function render(){
+  const a=v("anrede"),name=[v("vorname"),v("nachname")].filter(Boolean).join(" "),voll=(a?a+" ":"")+name;
+  const beg=v("beginn"),lohn=num(v("lohn")),min=milo(beg),std=num(v("std"))||20,tage=+v("tage")||5,urlaub=tage*4;
+  const art=v("art"),ART={vollzeit:"Vollzeit",teilzeit:"Teilzeit",minijob:"geringfügige Beschäftigung (Minijob)"}[art];
+  const mon=Math.round(std*13/3*100)/100, monLohn=isNaN(lohn)?NaN:Math.round(mon*lohn*100)/100, grenze=miniGrenze(beg);
+  $("artHint").className="hint";
+  if(art==="minijob"){const maxStd=Math.floor(grenze/(isNaN(lohn)?min:lohn)/(13/3)*2)/2;
+    $("artHint").textContent=`Minijob-Grenze ${eur(grenze)}/Monat → höchstens ca. ${String(maxStd).replace(".",",")} Std./Woche bei diesem Lohn. Ca. Monatslohn: ${isNaN(monLohn)?"–":eur(monLohn)}`;
+    if(!isNaN(monLohn)&&monLohn>grenze){$("artHint").textContent+=" – ÜBER der Minijob-Grenze!";$("artHint").className="hint bad";}}
+  else if(art==="vollzeit"){$("artHint").textContent=std<35?"Vollzeit meist 38–40 Std./Woche":"";}
+  else $("artHint").textContent=std>=35?"Bei 35+ Std. eher Vollzeit wählen":"Teilzeit nach Teilzeit- und Befristungsgesetz (TzBfG)";
+  const ende=beg?(()=>{const d=new Date(beg);d.setMonth(d.getMonth()+6);d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);})():"";
+  // Prüfungen
+  $("lohnHint").textContent=`Gesetzlicher Mindestlohn ${beg?"ab "+de(beg):"heute"}: ${eur(min)}`+(beg&&beg<"2027-01-01"?" · ab 01.01.2027: 14,60 €":"");
+  $("lohnHint").className="hint"+(!isNaN(lohn)&&lohn<min?" bad":"");
+  if(!isNaN(lohn)&&lohn<min)$("lohnHint").textContent+=" – Lohn liegt UNTER dem Mindestlohn!";
+  const ib=v("iban");$("ibanHint").textContent=ib?(ibanOk(ib)?"IBAN gültig":"IBAN ungültig – bitte prüfen"):"";$("ibanHint").className="hint"+(ib&&!ibanOk(ib)?" bad":"");
+  const st=v("steuerid").replace(/\s/g,"");$("stHint").textContent=st?(/^\d{11}$/.test(st)?"":"Steuer-ID muss 11 Ziffern haben"):"";$("stHint").className="hint bad";
+  const adr=[v("strasse"),[v("plz"),v("ort")].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const lohnTxt=isNaN(lohn)?fill("",eur(min)):fill(eur(lohn));
+  $("doc").innerHTML=`
+<h1>ARBEITSVERTRAG</h1>
+<p style="text-align:center">${art==="minijob"?"für eine geringfügige Beschäftigung (Minijob) nach § 8 Abs. 1 Nr. 1 SGB IV":art==="teilzeit"?"für eine Teilzeitbeschäftigung":"für eine Vollzeitbeschäftigung"}<br>als Kurier- und Auslieferungsfahrer</p>
+<p>Zwischen</p>
+<div class="parties">
+  <div><b>N&amp;S Transport GbR</b><br>Ottostraße 18, 31137 Hildesheim<br>vertreten durch die Gesellschafter<br>Nader Tavana und Maryam Shahbazi<br><i>– nachfolgend „Arbeitgeber“ –</i></div>
+  <div>${fill(voll,"Name des Arbeitnehmers")}<br>${fill(adr,"Anschrift")}${v("geb")?"<br>geboren am "+fill(de(v("geb"))):""}<br><br><i>– nachfolgend „Arbeitnehmer“ –</i></div>
+</div>
+<p>wird folgender Arbeitsvertrag geschlossen:</p>
+
+<h3>§ 1 Beginn, Dauer und Probezeit</h3>
+<ol><li>Das Arbeitsverhältnis beginnt am ${fill(de(beg),"__.__.____")} und wird auf unbestimmte Zeit geschlossen.</li>
+<li>Die ersten sechs Monate${ende?" (bis "+fill(de(ende))+")":""} gelten als Probezeit. Während der Probezeit kann das Arbeitsverhältnis von beiden Seiten mit einer Frist von zwei Wochen gekündigt werden (§ 622 Abs. 3 BGB).</li></ol>
+
+<h3>§ 2 Tätigkeit und Arbeitsort</h3>
+<ol><li>Der Arbeitnehmer wird als <b>Kurier- und Auslieferungsfahrer</b> eingestellt, insbesondere für die Belieferung von Apotheken mit Arzneimitteln (Pharmalogistik). Dazu gehören das Be- und Entladen, die sorgfältige Übergabe der Ware, das Führen der Tour- und Übergabebelege sowie die Pflege des Fahrzeugs.</li>
+<li>Arbeitsort ist der Betriebssitz in Hildesheim. Die Touren werden im Raum Hildesheim und Hannover gefahren. Der Arbeitgeber kann dem Arbeitnehmer im Rahmen des Direktionsrechts (§ 106 GewO) andere zumutbare Touren und gleichwertige Tätigkeiten zuweisen.</li></ol>
+
+<h3>§ 3 Arbeitszeit</h3>
+<ol><li>Der Arbeitnehmer wird in ${art==="vollzeit"?"<b>Vollzeit</b>":art==="teilzeit"?"<b>Teilzeit</b> (§ 2 TzBfG)":"einer <b>geringfügigen Beschäftigung (Minijob)</b>"} beschäftigt. Die regelmäßige wöchentliche Arbeitszeit beträgt <b>${esc(String(std).replace(".",","))} Stunden</b>, verteilt auf in der Regel <b>${tage} Arbeitstage</b> pro Woche.${art==="minijob"?` Die Arbeitszeit wird so bemessen, dass das Arbeitsentgelt die Geringfügigkeitsgrenze (derzeit ${eur(grenze)} monatlich im Jahresdurchschnitt) nicht übersteigt.`:""}</li>
+<li>Beginn und Ende der täglichen Arbeitszeit richten sich nach dem Tourenplan des Arbeitgebers, der dem Arbeitnehmer mindestens vier Tage im Voraus mitgeteilt wird. Die Arbeitszeit kann auch in den Abendstunden liegen.${v("samstag")?" Der Arbeitnehmer ist verpflichtet, im rotierenden Wechsel auch an Samstagen zu arbeiten.":""}</li>
+<li>Die Ruhepausen richten sich nach § 4 ArbZG (bei mehr als 6 Stunden mindestens 30 Minuten, bei mehr als 9 Stunden mindestens 45 Minuten). Zwischen zwei Arbeitstagen liegt eine ununterbrochene Ruhezeit von mindestens 11 Stunden (§ 5 ArbZG).</li>
+<li>Überstunden leistet der Arbeitnehmer nur auf Anordnung des Arbeitgebers im gesetzlich zulässigen Rahmen. Sie werden mit dem vereinbarten Stundenlohn vergütet oder durch Freizeit ausgeglichen.</li>
+<li>Die Arbeitszeit wird täglich dokumentiert (Beginn, Ende, Pausen; § 17 MiLoG).</li></ol>
+
+<h3>§ 4 Vergütung</h3>
+<ol><li>Der Arbeitnehmer erhält einen Stundenlohn von ${lohnTxt} brutto. Der Lohn beträgt mindestens den gesetzlichen Mindestlohn in seiner jeweils gültigen Höhe (derzeit ${eur(min)}${beg&&beg<"2027-01-01"?", ab 01.01.2027: 14,60 €":""}); Erhöhungen des Mindestlohns gelten automatisch.</li>
+${v("nacht")?`<li>Für Arbeit in der Nachtzeit zwischen 23:00 und 6:00 Uhr erhält der Arbeitnehmer einen Zuschlag von 25 % auf den Stundenlohn (§ 6 Abs. 5 ArbZG).</li>`:""}
+<li>Die Vergütung wird monatlich nach den tatsächlich geleisteten Stunden abgerechnet und spätestens bis zum 15. des Folgemonats auf das vom Arbeitnehmer angegebene Konto (Anlage) überwiesen.</li>
+${art==="minijob"?`<li>Es handelt sich um eine geringfügig entlohnte Beschäftigung nach § 8 Abs. 1 Nr. 1 SGB IV. Der Arbeitgeber meldet die Beschäftigung bei der Minijob-Zentrale an und trägt die Pauschalbeiträge zur Kranken- und Rentenversicherung sowie die Pauschalsteuer von 2 %. Der Arbeitnehmer ist in der Rentenversicherung versicherungspflichtig und trägt den Differenzbetrag zum vollen Rentenversicherungsbeitrag, sofern er sich nicht schriftlich davon befreien lässt.</li>
+<li>Der Arbeitnehmer versichert, keine weiteren geringfügigen Beschäftigungen auszuüben bzw. diese vollständig angegeben zu haben, und teilt die Aufnahme jeder weiteren Beschäftigung unverzüglich mit, da mehrere Beschäftigungen zusammengerechnet werden können.</li></ol>`:`<li>Das Arbeitsverhältnis ist sozialversicherungspflichtig. Steuern und Sozialversicherungsbeiträge werden nach den gesetzlichen Vorschriften einbehalten und abgeführt.</li></ol>`}
+
+<h3>§ 5 Arbeitsverhinderung und Krankheit</h3>
+<ol><li>Der Arbeitnehmer muss dem Arbeitgeber jede Arbeitsverhinderung und deren voraussichtliche Dauer <b>unverzüglich, möglichst vor Tourbeginn telefonisch</b> mitteilen, damit die Tour anders besetzt werden kann.</li>
+<li>Bei Arbeitsunfähigkeit wegen Krankheit, die länger als drei Kalendertage dauert, ist spätestens am darauffolgenden Arbeitstag eine ärztliche Bescheinigung vorzulegen bzw. die elektronische Arbeitsunfähigkeitsbescheinigung (eAU) bei der Krankenkasse abrufbar zu machen. Der Arbeitgeber kann die Bescheinigung auch früher verlangen.</li>
+<li>Die Entgeltfortzahlung im Krankheitsfall richtet sich nach dem Entgeltfortzahlungsgesetz (bis zu sechs Wochen, nach vierwöchigem ununterbrochenem Bestehen des Arbeitsverhältnisses).</li></ol>
+
+<h3>§ 6 Urlaub</h3>
+<ol><li>Der Arbeitnehmer erhält den gesetzlichen Mindesturlaub von vier Wochen im Kalenderjahr. Bei ${tage} Arbeitstagen pro Woche sind das <b>${urlaub} Arbeitstage</b> pro Jahr. Ändert sich die Zahl der wöchentlichen Arbeitstage, wird der Urlaub entsprechend angepasst.</li>
+<li>Im Eintritts- und Austrittsjahr besteht der Anspruch anteilig nach dem Bundesurlaubsgesetz (1/12 für jeden vollen Monat, soweit nicht der volle Anspruch entstanden ist).</li>
+<li>Urlaub ist mindestens zwei Wochen vorher beim Arbeitgeber zu beantragen und darf erst nach Genehmigung angetreten werden. Nicht genommener Urlaub verfällt nach Maßgabe des § 7 Abs. 3 BUrlG mit Ablauf des 31. März des Folgejahres, sofern der Arbeitgeber rechtzeitig auf den Resturlaub und den Verfall hingewiesen hat.</li></ol>
+
+<h3>§ 7 Fahrerlaubnis und Fahrzeuge</h3>
+<ol><li>Der Arbeitnehmer versichert, im Besitz einer gültigen Fahrerlaubnis der Klasse B zu sein. Er legt den Führerschein bei Arbeitsbeginn und danach mindestens halbjährlich sowie auf Verlangen zur Kontrolle vor.</li>
+<li>Ein Fahrverbot, der Entzug der Fahrerlaubnis oder ein laufendes Verfahren, das dazu führen kann, ist dem Arbeitgeber sofort mitzuteilen.</li>
+<li>Die Firmenfahrzeuge dürfen nur dienstlich und nur vom Arbeitnehmer selbst geführt werden. Während der Arbeitszeit gilt ein absolutes Alkohol- und Drogenverbot (0,0 ‰). Mobiltelefone dürfen während der Fahrt nur über eine Freisprecheinrichtung genutzt werden.</li>
+<li>Der Arbeitnehmer behandelt die Fahrzeuge sorgfältig, kontrolliert vor Fahrtantritt die Verkehrssicherheit und meldet Schäden, Mängel und Unfälle sofort.</li></ol>
+
+<h3>§ 8 Bußgelder und Haftung</h3>
+<ol><li>Verwarnungs- und Bußgelder für Verkehrsverstöße, die der Arbeitnehmer selbst begangen hat (z. B. Parken, Geschwindigkeit), trägt der Arbeitnehmer. Hat der Arbeitgeber solche Beträge gezahlt, kann er sie im Rahmen der Pfändungsfreigrenzen (§ 394 BGB) mit dem Lohn verrechnen; der Abzug wird in der Lohnabrechnung ausgewiesen.</li>
+<li>Für Schäden, die der Arbeitnehmer bei der Arbeit verursacht (z. B. an Fahrzeug, Ware oder Pfand-/Leergut), haftet er nach den Grundsätzen der Rechtsprechung zum innerbetrieblichen Schadensausgleich: bei Vorsatz und grober Fahrlässigkeit in der Regel voll, bei mittlerer Fahrlässigkeit anteilig, bei leichter Fahrlässigkeit nicht.</li></ol>
+
+<h3>§ 9 Verschwiegenheit und Datenschutz</h3>
+<p>Der Arbeitnehmer behandelt alle Betriebs- und Geschäftsgeheimnisse sowie Daten von Kunden, Apotheken und Auftraggebern vertraulich, auch nach Ende des Arbeitsverhältnisses. Arzneimittel und Belege sind vor dem Zugriff Dritter zu schützen. Die Verarbeitung der personenbezogenen Daten des Arbeitnehmers erfolgt nach DSGVO und BDSG zur Durchführung des Arbeitsverhältnisses.</p>
+
+<h3>§ 10 Nebentätigkeit</h3>
+<p>Eine Nebentätigkeit ist dem Arbeitgeber vorher anzuzeigen. Sie ist untersagt, wenn sie die Arbeitsleistung beeinträchtigt, gegen das Arbeitszeitgesetz verstößt oder für einen Wettbewerber erfolgt.</p>
+
+<h3>§ 11 Beendigung des Arbeitsverhältnisses</h3>
+<ol><li>Nach der Probezeit gelten für beide Seiten die gesetzlichen Kündigungsfristen des § 622 BGB. Eine Verlängerung der Fristen für den Arbeitgeber gilt auch für den Arbeitnehmer.</li>
+<li>Die Kündigung bedarf der Schriftform (§ 623 BGB); eine Kündigung per E-Mail, SMS oder WhatsApp ist unwirksam. Das Recht zur fristlosen Kündigung aus wichtigem Grund (§ 626 BGB) bleibt unberührt.</li>
+<li>Will der Arbeitnehmer geltend machen, dass eine Kündigung unwirksam ist, muss er innerhalb von drei Wochen nach Zugang der schriftlichen Kündigung Klage beim Arbeitsgericht erheben (§ 4 KSchG).</li>
+<li>Das Arbeitsverhältnis endet ohne Kündigung mit Ablauf des Monats, in dem der Arbeitnehmer die Regelaltersgrenze der gesetzlichen Rentenversicherung erreicht.</li>
+<li>Bei Beendigung gibt der Arbeitnehmer Fahrzeugschlüssel, Tankkarten, Scanner, Belege und sonstiges Firmeneigentum unaufgefordert zurück.</li></ol>
+
+<h3>§ 12 Ausschlussfristen</h3>
+<p>Ansprüche aus dem Arbeitsverhältnis verfallen, wenn sie nicht innerhalb von drei Monaten nach Fälligkeit gegenüber der anderen Seite in Textform geltend gemacht werden. Dies gilt nicht für den Anspruch auf den gesetzlichen Mindestlohn, für Ansprüche aus vorsätzlicher oder grob fahrlässiger Pflichtverletzung sowie aus der Verletzung von Leben, Körper oder Gesundheit.</p>
+
+<h3>§ 13 Sonstiges</h3>
+<ol><li>Auf das Arbeitsverhältnis finden keine Tarifverträge oder Betriebsvereinbarungen Anwendung. Eine betriebliche Altersversorgung über einen Versorgungsträger besteht nicht; der gesetzliche Anspruch auf Entgeltumwandlung (§ 1a BetrAVG) bleibt unberührt. Ein Anspruch auf vom Arbeitgeber bereitgestellte Fortbildung besteht nicht, soweit sie nicht gesetzlich vorgeschrieben ist.</li>
+<li>Der Arbeitnehmer teilt Änderungen seiner Anschrift, Bankverbindung, Krankenkasse und steuerlichen Daten unverzüglich mit.</li>
+<li>Änderungen und Ergänzungen dieses Vertrags bedürfen der Schriftform. Mündliche Nebenabreden bestehen nicht.</li>
+<li>Sollte eine Bestimmung dieses Vertrags unwirksam sein, bleibt der übrige Vertrag wirksam. An die Stelle der unwirksamen Bestimmung tritt die gesetzliche Regelung.</li>
+<li>Der Arbeitnehmer erhält eine unterschriebene Ausfertigung dieses Vertrags.</li></ol>
+
+<div class="sig">
+  <div>${esc(v("unterort")||"Hildesheim")}, den ______________<br><br>Arbeitgeber – N&amp;S Transport GbR<br>(Nader Tavana / Maryam Shahbazi)</div>
+  <div>${esc(v("unterort")||"Hildesheim")}, den ______________<br><br>Arbeitnehmer – ${fill(voll,"Name")}</div>
+</div>
+
+<div class="pb"></div>
+<h1 style="font-size:14pt">Anlage zum Arbeitsvertrag – Personalangaben</h1>
+<table>
+<tr><td>Name, Vorname</td><td>${fill([v("nachname"),v("vorname")].filter(Boolean).join(", "))}</td></tr>
+<tr><td>Anschrift</td><td>${fill(adr)}</td></tr>
+<tr><td>Geburtsdatum</td><td>${fill(de(v("geb")))}</td></tr>
+<tr><td>Beginn der Beschäftigung</td><td>${fill(de(beg))}</td></tr>
+<tr><td>Tätigkeit</td><td>Kurier- und Auslieferungsfahrer</td></tr>
+<tr><td>Wochenstunden / Arbeitstage</td><td>${esc(String(std).replace(".",","))} Std. / ${tage} Tage pro Woche</td></tr>
+<tr><td>Stundenlohn brutto</td><td>${lohnTxt}</td></tr>
+<tr><td>Urlaubsanspruch</td><td>${urlaub} Arbeitstage pro Kalenderjahr</td></tr>
+<tr><td>IBAN</td><td>${fill(ib?ibanFmt(ib):"")}</td></tr>
+<tr><td>Kontoinhaber</td><td>${fill(name)}</td></tr>
+<tr><td>Steuer-Identifikationsnummer</td><td>${fill(st)}</td></tr>
+<tr><td>Sozialversicherungsnummer</td><td>${fill(v("svnr"))}</td></tr>
+<tr><td>Krankenkasse</td><td>${fill(v("kasse"))}</td></tr>
+<tr><td>Art der Krankenversicherung</td><td>${fill(v("vart"))}</td></tr>
+${art!=="vollzeit"?`<tr><td>Weitere Beschäftigungen</td><td>☐ keine &nbsp; ☐ ja, bei: ____________________</td></tr>`:""}
+<tr><td>Vertragsart</td><td>${ART}</td></tr>
+<tr><td>Beschäftigungsart</td><td>${art==="minijob"?"geringfügig entlohnt (Minijob-Zentrale), Rentenversicherungspflicht – Befreiung beantragt: ☐ ja ☐ nein":"sozialversicherungspflichtig"}</td></tr>
+</table>
+<p>Der Arbeitnehmer versichert die Richtigkeit der Angaben und teilt Änderungen unverzüglich mit.</p>
+<div class="sig">
+  <div>Datum, Unterschrift Arbeitgeber</div>
+  <div>Datum, Unterschrift Arbeitnehmer</div>
+</div>`;
+  try{const o={};F.forEach(id=>{const e=$(id);o[id]=e.type==="checkbox"?e.checked:e.value;});localStorage.setItem(KEY,JSON.stringify(o));}catch(e){}
+}
+function leeren(){if(!confirm("Alle Felder leeren?"))return;
+  ["vorname","nachname","strasse","plz","beginn","lohn","iban","steuerid","kasse","geb","svnr"].forEach(id=>$(id).value="");
+  $("art").value="teilzeit";$("ort").value="Hildesheim";$("std").value="20";$("tage").value="5";$("nacht").checked=false;$("samstag").checked=true;$("vart").selectedIndex=0;render();}
+try{const o=JSON.parse(localStorage.getItem(KEY)||"{}");F.forEach(id=>{if(o[id]===undefined)return;const e=$(id);if(e.type==="checkbox")e.checked=o[id];else e.value=o[id];});}catch(e){}
+// Vertragsart: passende Standardwerte
+$("art").addEventListener("change",()=>{const a=v("art");
+  if(a==="vollzeit"){$("std").value="40";$("tage").value="5";}
+  else if(a==="teilzeit"){if(+$("std").value>=35||+$("std").value<=10)$("std").value="20";}
+  else{const l=num(v("lohn"))||milo(v("beginn"));$("std").value=String(Math.floor(miniGrenze(v("beginn"))/l/(13/3)*2)/2);}
+  render();});
+// Lohn vorschlagen: Mindestlohn zum Beginn
+$("beginn").addEventListener("change",()=>{if(!$("lohn").value||num($("lohn").value)<milo(v("beginn")))$("lohn").value=milo(v("beginn")).toFixed(2).replace(".",",");});
+F.forEach(id=>$(id).addEventListener("input",render));F.forEach(id=>$(id).addEventListener("change",render));
+render();
+</script>
+</body>
+</html>
