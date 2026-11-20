@@ -51,7 +51,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
 <body>
 <div class="noprint" style="max-width:1300px;margin:0 auto">
   <h1>Arbeitsvertrag für Fahrer</h1>
-  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 1</div>
+  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 2</div>
 </div>
 
 <div class="wrap">
@@ -97,7 +97,6 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
         <label>Wochenstunden<input id="std" type="number" min="1" max="48" step="0.5" value="20"></label>
         <label>Arbeitstage pro Woche<select id="tage"><option>5</option><option>4</option><option>3</option><option>6</option></select></label>
       </div>
-      <label class="hint" style="flex-direction:row;gap:6px;align-items:center"><input id="nacht" type="checkbox" style="width:auto"> Regelmäßige Nachtarbeit (23–6 Uhr, z. B. Tour 843 P) → 25 % Zuschlag</label>
       <label class="hint" style="flex-direction:row;gap:6px;align-items:center"><input id="samstag" type="checkbox" style="width:auto" checked> Samstagsarbeit im Wechsel möglich</label>
       <label>Ort und Datum der Unterschrift<input id="unterort" value="Hildesheim"></label>
     </details>
@@ -112,7 +111,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
 
 <script>
 const $=id=>document.getElementById(id);
-const F=["art","anrede","vorname","nachname","strasse","plz","ort","beginn","lohn","iban","steuerid","kasse","vart","geb","svnr","std","tage","nacht","samstag","unterort"];
+const F=["art","anrede","vorname","nachname","strasse","plz","ort","beginn","lohn","iban","steuerid","kasse","vart","geb","svnr","std","tage","samstag","unterort"];
 const KEY="ns_arbeitsvertrag_v1";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const de=s=>{if(!s)return"";const[y,m,d]=s.split("-");return d+"."+m+"."+y;};
@@ -176,7 +175,6 @@ function render(){
 
 <h3>§ 4 Vergütung</h3>
 <ol><li>Der Arbeitnehmer erhält einen Stundenlohn von ${lohnTxt} brutto. Der Lohn beträgt mindestens den gesetzlichen Mindestlohn in seiner jeweils gültigen Höhe (derzeit ${eur(min)}${beg&&beg<"2027-01-01"?", ab 01.01.2027: 14,60 €":""}); Erhöhungen des Mindestlohns gelten automatisch.</li>
-${v("nacht")?`<li>Für Arbeit in der Nachtzeit zwischen 23:00 und 6:00 Uhr erhält der Arbeitnehmer einen Zuschlag von 25 % auf den Stundenlohn (§ 6 Abs. 5 ArbZG).</li>`:""}
 <li>Die Vergütung wird monatlich nach den tatsächlich geleisteten Stunden abgerechnet und spätestens bis zum 15. des Folgemonats auf das vom Arbeitnehmer angegebene Konto (Anlage) überwiesen.</li>
 ${art==="minijob"?`<li>Es handelt sich um eine geringfügig entlohnte Beschäftigung nach § 8 Abs. 1 Nr. 1 SGB IV. Der Arbeitgeber meldet die Beschäftigung bei der Minijob-Zentrale an und trägt die Pauschalbeiträge zur Kranken- und Rentenversicherung sowie die Pauschalsteuer von 2 %. Der Arbeitnehmer ist in der Rentenversicherung versicherungspflichtig und trägt den Differenzbetrag zum vollen Rentenversicherungsbeitrag, sofern er sich nicht schriftlich davon befreien lässt.</li>
 <li>Der Arbeitnehmer versichert, keine weiteren geringfügigen Beschäftigungen auszuüben bzw. diese vollständig angegeben zu haben, und teilt die Aufnahme jeder weiteren Beschäftigung unverzüglich mit, da mehrere Beschäftigungen zusammengerechnet werden können.</li></ol>`:`<li>Das Arbeitsverhältnis ist sozialversicherungspflichtig. Steuern und Sozialversicherungsbeiträge werden nach den gesetzlichen Vorschriften einbehalten und abgeführt.</li></ol>`}
@@ -259,7 +257,7 @@ ${art!=="vollzeit"?`<tr><td>Weitere Beschäftigungen</td><td>☐ keine &nbsp; �
 }
 function leeren(){if(!confirm("Alle Felder leeren?"))return;
   ["vorname","nachname","strasse","plz","beginn","lohn","iban","steuerid","kasse","geb","svnr"].forEach(id=>$(id).value="");
-  $("art").value="teilzeit";$("ort").value="Hildesheim";$("std").value="20";$("tage").value="5";$("nacht").checked=false;$("samstag").checked=true;$("vart").selectedIndex=0;render();}
+  $("art").value="teilzeit";$("ort").value="Hildesheim";$("std").value="20";$("tage").value="5";$("samstag").checked=true;$("vart").selectedIndex=0;render();}
 try{const o=JSON.parse(localStorage.getItem(KEY)||"{}");F.forEach(id=>{if(o[id]===undefined)return;const e=$(id);if(e.type==="checkbox")e.checked=o[id];else e.value=o[id];});}catch(e){}
 // Vertragsart: passende Standardwerte
 $("art").addEventListener("change",()=>{const a=v("art");
