@@ -25,7 +25,7 @@ button{font:600 14px inherit;font-family:inherit;border:1px solid var(--accent);
 button.sec{background:#fff;color:var(--accent)}
 details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0}
 /* Vertrag (A4) */
-.doc{background:#fff;color:#000;max-width:210mm;margin:0 auto;padding:18mm 20mm;font:10.5pt/1.45 "Times New Roman",Georgia,serif;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.doc{background:#fff;color:#000;max-width:210mm;margin:0 auto;padding:18mm 20mm;font:10pt/1.4 "Times New Roman",Georgia,serif;box-shadow:0 1px 6px rgba(0,0,0,.12)}
 .doc h1{font-size:16pt;text-align:center;margin:0 0 4mm;letter-spacing:.04em}
 .doc h3{font-size:11pt;margin:4mm 0 1.2mm}
 .doc p{margin:0 0 2mm;text-align:justify}
@@ -38,14 +38,18 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
 .sig{display:grid;grid-template-columns:1fr 1fr;gap:12mm;margin-top:14mm}
 .sig div{border-top:1px solid #000;padding-top:1.5mm;font-size:9.5pt}
 .pb{break-before:page;page-break-before:always}
-.lh{display:grid;grid-template-columns:1fr auto;gap:4mm;border-bottom:1px solid #000;padding-bottom:3mm;margin-bottom:6mm;align-items:end}
-.lh .tag{font:bold 8pt/1.3 Arial,sans-serif;grid-column:1/-1;border-bottom:1px solid #ccc;padding-bottom:1.5mm}
-.lh .ti{text-align:center;align-self:center}.lh .ti b{font:bold 16pt "Times New Roman",serif;display:block}.lh .ti span{font:10pt "Times New Roman",serif}
-.lh .co{text-align:center;justify-self:end;font:8.5pt/1.3 Arial,sans-serif}
-.lh .co img{height:15mm;width:auto;display:block;margin:0 auto 1mm}
-.lh .co .n{color:#3a7fc1;font-weight:bold;font-size:10.5pt}.lh .co .a{color:#3a7fc1;font-weight:bold}
-.lf{border-top:1px solid #000;padding-top:2mm;margin-top:8mm;font:8pt/1.35 Arial,sans-serif;color:#222;display:grid;grid-template-columns:1fr 1fr;gap:6mm}
-.lf .r{text-align:left;padding-left:10mm}.lf .g{color:#666}
+.lh{display:grid;grid-template-columns:1fr 62mm;gap:4mm;border-bottom:1px solid #000;padding-bottom:2mm;margin-bottom:6mm}
+.lh .left{display:flex;flex-direction:column;justify-content:space-between;padding-top:6mm}
+.lh .tag{font:bold 9pt/1.3 Arial,sans-serif}
+.lh .ti{text-align:center;margin-top:6mm}.lh .ti b{font:bold 20pt/1.1 "Times New Roman",serif;display:block}.lh .ti span{font:bold 12pt "Times New Roman",serif}
+.lh .co{text-align:center;font:9.5pt/1.3 Arial,sans-serif}
+.lh .co img{height:23mm;width:auto;display:block;margin:0 auto 2mm}
+.lh .co .n{color:#6fa0d8;font-weight:bold;font-size:13pt}.lh .co .n small{font-size:9.5pt}
+.lh .co .a{color:#2f75b5;font-weight:bold;font-size:10pt}
+.lh .co table.ct{margin:1mm auto 0;border-collapse:collapse;text-align:left;font:9.5pt/1.3 Arial,sans-serif}.lh .co table.ct td{padding:0 1mm 0 0;border:0}
+.lf{border-top:1px solid #000;padding-top:3mm;margin-top:8mm;display:grid;grid-template-columns:1fr 1fr;gap:6mm}
+.lf .l{font:9pt/1.3 Arial,sans-serif;color:#000}.lf .g{color:#666}
+.lf .r{font:11pt/1.3 Calibri,Carlito,"Segoe UI",Arial,sans-serif;color:#000}.lf .r div+div{margin-top:4mm}
 .pagetbl{width:100%;border-collapse:collapse}.pagetbl>thead td,.pagetbl>tfoot td,.pagetbl>tbody>tr>td{border:0;padding:0}
 .sp-h{height:0}.sp-f{height:0}
 .lh.fixed,.lf.fixed{display:none}
@@ -58,7 +62,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
   @page{size:A4;margin:10mm 18mm}
   .lh{position:fixed;top:0;left:0;right:0;margin:0;background:#fff}
   .lf{position:fixed;bottom:0;left:0;right:0;margin:0;background:#fff}
-  .sp-h{height:57mm}.sp-f{height:22mm}
+  .sp-h{height:60mm}.sp-f{height:24mm}
   .lh.inline,.lf.inline{display:none}
   .lh.fixed{display:grid}.lf.fixed{display:grid}
 }
@@ -67,7 +71,7 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;margin:10px 0
 <body>
 <div class="noprint" style="max-width:1300px;margin:0 auto">
   <h1>Arbeitsvertrag für Fahrer</h1>
-  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 7</div>
+  <div class="sub">N&amp;S Transport GbR · Vertrag nach deutschem Arbeitsrecht (Nachweisgesetz, MiLoG, ArbZG, BUrlG, EFZG, BGB). Nur die Angaben links eintragen – der Vertrag rechts wird automatisch erstellt. · Version 8</div>
 </div>
 
 <div class="wrap">
@@ -176,9 +180,10 @@ function render(){
   const adr=[v("strasse"),[v("plz"),v("ort")].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const lohnTxt=isNaN(lohn)?fill("",eur(min)):fill(eur(lohn));
   const SUBT={vollzeit:"(Vollzeit / Stundenbasis)",teilzeit:"(Teilzeit / Stundenbasis)",minijob:"(Minijob / Stundenbasis)"}[art];
-  const LH=cls=>`<div class="lh ${cls}"><div class="tag">Transporte, Export, Import, Kurierdienst, Dienstleistungen, Beratung, Spendenweitergabe an Bedürftige Personen und soziale Einrichtungen</div><div class="ti"><b>Arbeitsvertrag</b><span>${SUBT}</span></div>
-    <div class="co"><img src="${LOGO}" alt="N&amp;S Transport"><span class="n">N&amp;S Transport GbR</span><br><span class="a">Ottostraße 18<br>31137, Hildesheim</span><br>Mobile: ${esc(v("fTel"))}${v("fTel2")?"<br>Tel: "+esc(v("fTel2")):""}<br>E-Mail: ${esc(v("fMail"))}</div></div>`;
-  const LF=cls=>`<div class="lf ${cls}"><div>${esc(v("fBank"))}<br><span class="g">Kontoinhaber: ${esc(v("fInh"))}</span>${v("fIban")?"<br>IBAN: "+esc(ibanFmt(v("fIban"))):""}${v("fBic")?"<br>BIC: "+esc(v("fBic")):""}</div><div class="r">${v("fStnr")?"Steuer Nummer: "+esc(v("fStnr")):""}<br><br>${v("fUst")?"USt-IdNr.: "+esc(v("fUst")):""}</div></div>`;
+  const LH=cls=>`<div class="lh ${cls}"><div class="left"><div class="tag">Transporte, Export, Import, Kurierdienst, Dienstleistungen, Beratung,<br>Spendenweitergabe an Bedürftige Personen und soziale Einrichtungen</div><div class="ti"><b>Arbeitsvertrag</b><span>${SUBT}</span></div></div>
+    <div class="co"><img src="${LOGO}" alt="N&amp;S Transport"><div class="n">N&amp;S Transport <small>GbR</small></div><div class="a">Ottostraße 18<br>31137, Hildesheim</div>
+    <table class="ct"><tr><td>Mobile:</td><td>${esc(v("fTel"))}</td></tr>${v("fTel2")?`<tr><td>Tel</td><td>:${esc(v("fTel2"))}</td></tr>`:""}<tr><td>E-Mail:</td><td><u>${esc(v("fMail"))}</u></td></tr></table></div></div>`;
+  const LF=cls=>`<div class="lf ${cls}"><div class="l">${esc(v("fBank"))}<br><span class="g">Kontoinhaber: ${esc(v("fInh"))}</span>${v("fIban")?"<br>IBAN: "+esc(ibanFmt(v("fIban"))):""}${v("fBic")?"<br>BIC: "+esc(v("fBic")):""}</div><div class="r">${v("fStnr")?"<div>Steuer Nummer: "+esc(v("fStnr"))+"</div>":""}${v("fUst")?"<div>UST-ID. No.: "+esc(v("fUst"))+"</div>":""}</div></div>`;
   $("doc").innerHTML=LH("inline")+LH("fixed")+LF("fixed")+`<table class="pagetbl"><thead><tr><td><div class="sp-h"></div></td></tr></thead><tfoot><tr><td><div class="sp-f"></div></td></tr></tfoot><tbody><tr><td>
 <p style="text-align:center;margin-top:2mm">${art==="minijob"?"für eine geringfügige Beschäftigung (Minijob) nach § 8 Abs. 1 Nr. 1 SGB IV":art==="teilzeit"?"für eine Teilzeitbeschäftigung":"für eine Vollzeitbeschäftigung"}<br>als Kurier- und Auslieferungsfahrer</p>
 <p>Zwischen</p>
