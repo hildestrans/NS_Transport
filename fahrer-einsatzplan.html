@@ -198,7 +198,9 @@ tr.pick{cursor:pointer} tr.pick:hover td{background:var(--bg)}
         <label>2. Monat<select id="flMon"></select></label>
         <label>Jahr<select id="flYear"></select></label>
         <button class="primary" id="btnExport" style="flex:0 0 auto">Excel erstellen</button>
+        <button type="button" id="btnDir" style="flex:0 0 auto">Speicherordner wählen</button>
       </div>
+      <div class="sub" id="dirInfo" style="margin-top:6px"></div>
       <input id="flFrom" type="hidden"><input id="flTo" type="hidden">
       <div class="sub" style="margin-top:6px">Erst den Fahrer, dann den Monat wählen: Die Excel-Liste wird sofort erstellt. Für den aktuell gewählten Monat „Excel erstellen“ antippen. „Alle Fahrer“ erstellt eine Datei mit einem Blatt je Fahrer.</div>
       <div class="msg" id="planMsg"></div>
@@ -722,7 +724,35 @@ $("btnExport").onclick=()=>{
 };
 function showErr(t){const m=$("planMsg");m.style.color="var(--krank)";m.textContent=t;try{m.scrollIntoView({behavior:"smooth",block:"center"});}catch(x){}}
 const errText=e=>{try{return (e&&e.message)||String(e)||"unbekannter Fehler";}catch(x){return "unbekannter Fehler";}};
+// Speicherordner (Chrome/Edge am PC): einmal wählen, danach werden alle Excel-Dateien direkt dort gespeichert
+let saveDir=null;
+function dirDb(){return new Promise((res,rej)=>{const q=indexedDB.open("ns_einsatzplan_dir",1);q.onupgradeneeded=()=>q.result.createObjectStore("h");q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+async function dirGet(){try{const db2=await dirDb();return await new Promise(res=>{const g=db2.transaction("h").objectStore("h").get("dir");g.onsuccess=()=>res(g.result||null);g.onerror=()=>res(null);});}catch(e){return null;}}
+async function dirPut(h){try{const db2=await dirDb();await new Promise(res=>{const t=db2.transaction("h","readwrite");h?t.objectStore("h").put(h,"dir"):t.objectStore("h").delete("dir");t.oncomplete=res;t.onerror=res;});}catch(e){}}
+function dirShow(){const el=$("dirInfo");if(!el)return;
+  if(!window.showDirectoryPicker){el.textContent="Speicherordner wählen geht nur in Chrome oder Edge am PC. In diesem Browser landen die Dateien im Ordner „Downloads“.";$("btnDir").disabled=true;return;}
+  el.innerHTML=saveDir?"Excel-Dateien werden gespeichert in: <b>"+esc(saveDir.name)+"</b> &nbsp;<a href=\"#\" onclick=\"saveDir=null;dirPut(null);dirShow();return false\">zurück zu „Downloads“</a>":"Noch kein Speicherordner gewählt – Dateien landen im Ordner „Downloads“.";}
+async function pickDir(){try{const h=await window.showDirectoryPicker({id:"ns-excel",mode:"readwrite"});saveDir=h;await dirPut(h);dirShow();}catch(e){if(e&&e.name!=="AbortError")alert("Ordner konnte nicht gewählt werden: "+errText(e));}}
+dirGet().then(h=>{saveDir=h;dirShow();});
+setTimeout(()=>{const b=$("btnDir");if(b)b.onclick=pickDir;dirShow();},0);
+async function saveToDir(wb,name){
+  if(!saveDir)return false;
+  try{
+    let p=await saveDir.queryPermission({mode:"readwrite"});
+    if(p!=="granted")p=await saveDir.requestPermission({mode:"readwrite"});
+    if(p!=="granted")return false;
+    const fh=await saveDir.getFileHandle(name,{create:true});const w=await fh.createWritable();
+    await w.write(new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})]));await w.close();
+    const m=$("planMsg");m.style.color="";m.innerHTML="Excel gespeichert: <b>"+esc(name)+"</b> im Ordner <b>"+esc(saveDir.name)+"</b>.";
+    try{m.scrollIntoView({behavior:"smooth",block:"center"});}catch(x){}
+    return true;
+  }catch(e){return false;}
+}
 function saveXlsx(wb,name){
+  if(saveDir){saveToDir(wb,name).then(ok=>{if(!ok)saveXlsxDownload(wb,name);});return;}
+  saveXlsxDownload(wb,name);
+}
+function saveXlsxDownload(wb,name){
   const m=$("planMsg");m.style.color="";
   // 1) eigener Download über Blob
   try{
