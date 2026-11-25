@@ -543,6 +543,7 @@ const kOf=e=>{if(!e||e.type!=="Tour")return"";const t=db.tours.find(t=>e.tourId?
 const kb=k=>k?`<span class="kb ${k}">${k}</span>`:"";
 const sortedTours=()=>db.tours.slice().sort((a,b)=>KUNDEN.indexOf(kd(a))-KUNDEN.indexOf(kd(b))||a.name.localeCompare(b.name,"de",{numeric:true})||(a.start||"").localeCompare(b.start||""));
 // Urlaubskonto
+const xt=v=>({t:"n",v:+v||0,z:'General" Tage"'});
 const vacYear=()=>$("vkYear").value||String(new Date().getFullYear());
 function vacDays(id,y){const s=new Set();db.entries.forEach(e=>{if(e.driver===id&&e.type==="Urlaub"&&e.date.slice(0,4)===y)s.add(e.date);});
   ((db.vacImport||{})[id]||[]).forEach(ds=>{if(ds.slice(0,4)===y)s.add(ds);});
@@ -580,9 +581,9 @@ function renderVac(){const y=vacYear(),rows=vacRows(y);
     :'<div class="empty">Keine Fahrer für dieses Jahr.</div>';}
 $("btnVacXlsx").onclick=()=>{if(typeof XLSX==="undefined"){showErr("Excel konnte nicht geladen werden.");return;}
   const y=vacYear(),rows=vacRows(y);
-  const aoa=[["N&S Transport GbR – Urlaubskonto "+y],[],["Fahrer","Anspruch/Jahr","Eintritt","Austritt","Übertrag "+(+y-1),"Anspruch "+y,"Genommen","Rest","Urlaubstage"]];
-  rows.forEach(o=>aoa.push([full(o.d),o.d.urlaubAnspruch!=null?+o.d.urlaubAnspruch:20,o.d.eintritt?de(o.d.eintritt):"",o.d.austritt?de(o.d.austritt):"",o.c,o.an+o.c,o.g,Math.round(o.rest*10)/10,o.days.map(de).join(", ")]));
-  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[{wch:26},{wch:13},{wch:11},{wch:11},{wch:12},{wch:13},{wch:10},{wch:8},{wch:60}];
+  const aoa=[["N&S Transport GbR – Urlaubskonto "+y],[],["Fahrer","Anspruch/Jahr","Eintritt","Austritt","Übertrag "+(+y-1)+" (Tage)","Anspruch "+y+" (Tage)","Genommen (Tage)","Rest (Tage)","Urlaubstage"]];
+  rows.forEach(o=>aoa.push([full(o.d),xt(o.d.urlaubAnspruch!=null?+o.d.urlaubAnspruch:20),o.d.eintritt?de(o.d.eintritt):"",o.d.austritt?de(o.d.austritt):"",xt(o.c),xt(o.an+o.c),xt(o.g),xt(Math.round(o.rest*10)/10),o.days.map(de).join(", ")]));
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=[{wch:26},{wch:14},{wch:11},{wch:11},{wch:18},{wch:18},{wch:16},{wch:12},{wch:60}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Urlaubskonto "+y);saveXlsx(wb,"Urlaubskonto_"+y+".xlsx");};
 function render(){
   renderWages();renderVac();
@@ -662,7 +663,7 @@ $("btnExport").onclick=()=>{
   const drivers=$("flDriver").value?db.drivers.filter(d=>d.id===$("flDriver").value):db.drivers;
   const f=$("flFrom").value,t=$("flTo").value;
   const monat=MON[+f.slice(5,7)-1]+" "+f.slice(0,4), zeitraum=monat+" ("+de(f)+" – "+de(t)+")";
-  const summary=[["N&S Transport GbR – Übersicht"],["Monat",zeitraum],[],["Fahrer","Arbeitstage","Std. Mo–Fr","Std. Samstag","Std. gesamt","Std. Noweda","Std. Alliance","Lohn","Abzüge","Auszahlung","Urlaubstage","Krankheitstage","Urlaubsanspruch "+f.slice(0,4),"Urlaub genommen bis "+de(t),"Resturlaub"]];
+  const summary=[["N&S Transport GbR – Übersicht"],["Monat",zeitraum],[],["Fahrer","Arbeitstage","Std. Mo–Fr","Std. Samstag","Std. gesamt","Std. Noweda","Std. Alliance","Lohn","Abzüge","Auszahlung","Urlaubstage","Krankheitstage","Urlaubsanspruch "+f.slice(0,4)+" (Tage)","Urlaub genommen bis "+de(t)+" (Tage)","Resturlaub (Tage)"]];
   const used=new Set();
   drivers.forEach(d=>{
     const rowsD=rowsAll.filter(r=>r.driver===d.id);
@@ -699,11 +700,11 @@ $("btnExport").onclick=()=>{
         ...abz.map(r=>[xd(r.date),"",r.tour,"","",r.note||"","",xeu(-(r.amount||0))]),
         ["","","","","","","Summe Abzüge:",xeu(-abzS)],
         ...(rate()?[["","","","","","","Auszahlung:",xeu(lohn(sumH)-abzS)]]:[])]:[]),
-      [],["Arbeitstage",days],["Urlaubstage",u],["Krankheitstage",k],[],
-      ["Urlaubskonto "+yy],["Urlaubsanspruch "+yy,uAn],["Urlaub genommen bis "+de(t),uBis],["Resturlaub",uRest],[],[],
+      [],["Arbeitstage",days],["Urlaubstage",xt(u)],["Krankheitstage",xt(k)],[],
+      ["Urlaubskonto "+yy],["Urlaubsanspruch "+yy,xt(uAn)],["Urlaub genommen bis "+de(t),xt(uBis)],["Resturlaub",xt(uRest)],[],[],
       ["Datum","","Unterschrift des Arbeitnehmers","","","Unterschrift des Arbeitgebers"],[],
       ["Kürzel in „Bemerkungen“: K = Krank, U = Urlaub, UU = Unbezahlter Urlaub"]);
-    summary.push([full(d),days,hm(sumWk),hm(sumSa),hm(sumH),hm(rows.filter(r=>kOf(r)==="Noweda").reduce((a,r)=>a+entH(r),0)),hm(rows.filter(r=>kOf(r)==="Alliance").reduce((a,r)=>a+entH(r),0)),xe(lohn(sumH)),abzS?xeu(-abzS):"",rate()?xeu(lohn(sumH)-abzS):"",u,k,uAn,uBis,uRest]);
+    summary.push([full(d),days,hm(sumWk),hm(sumSa),hm(sumH),hm(rows.filter(r=>kOf(r)==="Noweda").reduce((a,r)=>a+entH(r),0)),hm(rows.filter(r=>kOf(r)==="Alliance").reduce((a,r)=>a+entH(r),0)),xe(lohn(sumH)),abzS?xeu(-abzS):"",rate()?xeu(lohn(sumH)-abzS):"",xt(u),xt(k),xt(uAn),xt(uBis),xt(uRest)]);
     const ws=XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"]=[{wch:22},{wch:5},{wch:12},{wch:15},{wch:13},{wch:14},{wch:14},{wch:28}];
     let n=d.name.replace(/[\\\/\?\*\[\]:]/g,"").slice(0,31)||"Fahrer",base=n,i=2;
