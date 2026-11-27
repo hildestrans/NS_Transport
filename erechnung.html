@@ -72,7 +72,7 @@ pre{overflow:auto;max-height:260px;background:var(--card);padding:12px;border-ra
 <div class="row" style="align-items:end"><div><label for="cs">Gespeicherter Kunde</label><select id="cs"></select></div><div><button type="button" class="main" id="newc" style="width:100%">+ Neuer Kunde</button></div></div>
 <div class="row" style="margin-top:8px">
 <div style="grid-column:1/-1"><label for="bn">Firmenname *</label><input id="bn"></div>
-<div style="grid-column:1/-1"><label for="bs">Straße *</label><input id="bs"></div>
+<div style="grid-column:1/-1"><label for="b2">Adresszusatz (z. B. c/o …)</label><input id="b2"></div><div style="grid-column:1/-1"><label for="bs">Straße *</label><input id="bs"></div>
 <div><label for="bz">PLZ *</label><input id="bz"></div>
 <div><label for="bc">Ort *</label><input id="bc"></div>
 <div><label for="be">E-Mail *</label><input id="be" type="email"></div>
@@ -122,12 +122,15 @@ const today=()=>new Date().toISOString().slice(0,10);
 let S;
 try{S=JSON.parse(localStorage.getItem('nsr2')||'null')}catch(e){}
 const KM=(d,n,k,p)=>({d,t:'km',n,k,p}),BT=(d,p)=>({d,t:'betrag',n:'',k:'',p});
-if(!S)S={nextNo:30,iban:'DE60 2519 3331 1202 3620 00',bank:'Volksbank eG Hildesheim-Lehrte-Pattensen',bic:'GENODEF1PAT',cur:0,customers:[
+if(!S)S={nextNo:31,iban:'DE60 2519 3331 1202 3620 00',bank:'Volksbank eG Hildesheim-Lehrte-Pattensen',bic:'GENODEF1PAT',cur:0,customers:[
  {name:'Lachnet Kleintransporte',person:'Inh. Herr Olaf Witzel',street:'Hinter dem Turme 23a',zip:'38114',city:'Braunschweig',email:'olaf.witzel@lachnet-kleintransporte.de',vat:'',ref:'',lines:[
   KM('455 P',18,108,0.60),KM('455 P / Mi',4,110,0.60),KM('921 P / Sa (mit GDP)',3,311,0.62),KM('101 P / Sa (ohne GDP)',3,124,0.60),
   {d:'130 P',t:'tag',n:22,k:'',p:30},KM('110 S / Sa (mit GDP)',3,61,0.62),KM('318 P',22,93,0.62),KM('617 P',18,99,0.62),KM('617 P / Mi',4,92,0.62),
   KM('843 P',22,315,0.60),KM('970 P',4,102,0.62),KM('870 Q',18,108,0.62),BT('Dieselpreiszuschlag',698.30),BT('Keine Leergutmitnahme',-10)]},
+ {name:'WEG Osterstr. 7-9',extra:'c/o Sparkassen Immobiliengesellschaft HGP mbH',person:'Frau Demus-Hannke',street:'Kardinal-Bertram-Str. 1',zip:'31134',city:'Hildesheim',email:'',vat:'',ref:'',lines:[BT('Reinigungsleistung',392.47)]},
  {name:'Alliance',person:'',street:'',zip:'',city:'',email:'',vat:'',ref:'',lines:[KM('',0,0,0.62)]}]};
+if(!S.customers.some(c=>/osterstr/i.test(c.name||'')))S.customers.splice(1,0,{name:'WEG Osterstr. 7-9',extra:'c/o Sparkassen Immobiliengesellschaft HGP mbH',person:'Frau Demus-Hannke',street:'Kardinal-Bertram-Str. 1',zip:'31134',city:'Hildesheim',email:'',vat:'',ref:'',lines:[BT('Reinigungsleistung',392.47)]});
+if(S.nextNo<31)S.nextNo=31;
 S.customers.forEach(c=>{if(/lachnet/i.test(c.name||'')&&!c.email)c.email='olaf.witzel@lachnet-kleintransporte.de'});
 let lines=[];
 const save=()=>{try{localStorage.setItem('nsr2',JSON.stringify(S))}catch(e){}};
@@ -135,7 +138,7 @@ const invNo=()=>new Date().getFullYear()+'/'+S.nextNo;
 function monthDefaults(){const n=new Date(),y=n.getMonth()===0?n.getFullYear()-1:n.getFullYear(),m=n.getMonth()===0?12:n.getMonth();
  const first=`${y}-${String(m).padStart(2,'0')}-01`,last=new Date(y,m,0);$('ps').value=first;$('pe').value=`${y}-${String(m).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`}
 function fillCustSel(){$('cs').innerHTML=S.customers.map((c,i)=>`<option value="${i}">${esc(c.name||'(ohne Namen)')}</option>`).join('');$('cs').value=S.cur}
-const CF={bp:'person',bn:'name',bs:'street',bz:'zip',bc:'city',be:'email',bv:'vat',br:'ref'};
+const CF={b2:'extra',bp:'person',bn:'name',bs:'street',bz:'zip',bc:'city',be:'email',bv:'vat',br:'ref'};
 function loadCust(){const c=S.customers[S.cur];if(!c)return;for(const k in CF)$(k).value=c[CF[k]]||'';lines=(c.lines||[]).map(l=>({...l}));if(!lines.length)lines=[KM('',0,0,0.62)];renderLines()}
 function storeCust(){const c=S.customers[S.cur];if(!c)return;for(const k in CF)c[CF[k]]=$(k).value.trim();c.lines=lines.map(l=>({...l}));S.iban=$('ib').value.trim();S.bank=$('bk').value.trim();S.bic=$('bi').value.trim();save();
  const o=$('cs').options[S.cur];if(o)o.textContent=c.name||'(ohne Namen)'}
@@ -157,10 +160,10 @@ function due(){const d=new Date($('dt').value||today());d.setDate(d.getDate()+(+
 const fq=v=>(+v).toLocaleString('de-DE',{maximumFractionDigits:3});
 function paperHTML(){const v=calc(),b=S.customers[S.cur]||{};
  return `<div class="from">${esc(SELLER.name)} · ${esc(SELLER.street)} · ${SELLER.zip} ${esc(SELLER.city)}</div>
-<div>${esc($('bn').value)}<br>${$('bp').value?esc($('bp').value)+'<br>':''}${esc($('bs').value)}<br>${esc($('bz').value)} ${esc($('bc').value)}</div>
+<div>${esc($('bn').value)}<br>${$('b2').value?esc($('b2').value)+'<br>':''}${$('bp').value?esc($('bp').value)+'<br>':''}${esc($('bs').value)}<br>${esc($('bz').value)} ${esc($('bc').value)}</div>
 <div class="meta"><span>Rechnungsnr.</span><b>${esc($('no').value)}</b><span>Datum</span><span>${dDE($('dt').value)}</span><span>Leistungszeitraum</span><span>${dDE($('ps').value)} – ${dDE($('pe').value)}</span>${$('br').value?`<span>Referenz</span><span>${esc($('br').value)}</span>`:''}${$('bv').value?`<span>USt-IdNr. Kunde</span><span>${esc($('bv').value)}</span>`:''}</div>
 <h2>Rechnung</h2>
-<table><thead><tr><th>Pos.</th><th>Tour</th><th class="n">Tage</th><th class="n">km</th><th class="n">Preis</th><th class="n">Summe</th></tr></thead><tbody>
+<table><thead><tr><th>Pos.</th><th>Beschreibung</th><th class="n">Tage</th><th class="n">km</th><th class="n">Preis</th><th class="n">Summe</th></tr></thead><tbody>
 ${v.ls.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.d)}</td><td class="n">${l.t==='betrag'?'':fq(l.n)}</td><td class="n">${l.t==='km'?fq(l.k):l.t==='tag'?'Pauschal':''}</td><td class="n">${l.t==='betrag'?'':eur(l.price)+(l.t==='km'?'/km':'/Tag')}</td><td class="n">${eur(l.amt)}</td></tr>`).join('')}
 </tbody></table>
 <table class="tot"><tr><td>Nettobetrag</td><td class="n">${eur(v.net)}</td></tr><tr><td>zzgl. 19 % USt.</td><td class="n">${eur(v.tax)}</td></tr><tr class="g"><td>Gesamtbetrag</td><td class="n">${eur(v.gross)}</td></tr></table>
@@ -200,7 +203,7 @@ function xml(){const v=calc(),no=$('no').value.trim(),ref=$('br').value.trim()||
 </ram:SellerTradeParty>
 <ram:BuyerTradeParty><ram:Name>${esc($('bn').value.trim())}</ram:Name>${$('bp').value.trim()?`
 <ram:DefinedTradeContact><ram:PersonName>${esc($('bp').value.trim())}</ram:PersonName></ram:DefinedTradeContact>`:''}
-<ram:PostalTradeAddress><ram:PostcodeCode>${esc($('bz').value.trim())}</ram:PostcodeCode><ram:LineOne>${esc($('bs').value.trim())}</ram:LineOne><ram:CityName>${esc($('bc').value.trim())}</ram:CityName><ram:CountryID>DE</ram:CountryID></ram:PostalTradeAddress>
+<ram:PostalTradeAddress><ram:PostcodeCode>${esc($('bz').value.trim())}</ram:PostcodeCode><ram:LineOne>${esc($('bs').value.trim())}</ram:LineOne>${$('b2').value.trim()?`<ram:LineTwo>${esc($('b2').value.trim())}</ram:LineTwo>`:''}<ram:CityName>${esc($('bc').value.trim())}</ram:CityName><ram:CountryID>DE</ram:CountryID></ram:PostalTradeAddress>
 <ram:URIUniversalCommunication><ram:URIID schemeID="EM">${esc($('be').value.trim())}</ram:URIID></ram:URIUniversalCommunication>${bv?`
 <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(bv)}</ram:ID></ram:SpecifiedTaxRegistration>`:''}
 </ram:BuyerTradeParty>
