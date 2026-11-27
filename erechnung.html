@@ -35,10 +35,14 @@ button.main{background:var(--teal);color:var(--card);border-color:var(--teal)}
 button.x{border:0;color:var(--claret);padding:8px;min-width:44px}
 .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .ab{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1fr) 44px;gap:6px;align-items:end;margin-bottom:8px}
-.ln{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.1fr) minmax(0,.6fr) minmax(0,.7fr) minmax(0,.7fr) minmax(0,.9fr) 44px;gap:6px;align-items:end;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.ln{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) 44px;gap:8px;align-items:end;margin-bottom:12px;padding:10px;border:1px solid var(--line);border-radius:8px}
+.ln label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ln .d{grid-column:1/4;grid-row:1}.ln .ty{grid-column:4;grid-row:1}.ln .x{grid-column:5;grid-row:1}
+.ln .sum{grid-column:4/6}
 .ln .sum{font-weight:600;text-align:right;padding:10px 0;white-space:nowrap;font-variant-numeric:tabular-nums}
 .ln input:disabled{opacity:.35}
-@media(max-width:700px){.ln{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1fr)}.ln .d{grid-column:1/3;grid-row:1}.ln .ty{grid-column:3;grid-row:1}.ln .x{grid-column:4;grid-row:1;justify-self:end}}
+@media(max-width:520px){.ln{grid-template-columns:repeat(3,minmax(0,1fr)) 44px}.ln .d{grid-column:1/-1}.ln .ty{grid-column:1/4;grid-row:2}.ln .x{grid-column:4;grid-row:2}.ln .sum{grid-column:1/-1}}
+@media print{@page{size:A4;margin:12mm}body{background:#fff!important;color:#000}.band{padding:0;max-width:none}.band>h1,.band>.sub,#f{display:none!important}.grid{display:block}.paper{box-shadow:none!important;border-radius:0!important;padding:0!important;font-size:11.5px!important}.paper td{padding:3px 4px!important}.paper th{padding:4px!important}.paper .head{margin-bottom:12px!important}.paper h2{margin:10px 0 2px!important}.paper p{margin:8px 0}.paper .foot{margin-top:12px!important}.paper tr{break-inside:avoid}}
 .paper{background:#fff;color:#1a1817;border-radius:4px;padding:clamp(18px,3vw,36px);box-shadow:0 1px 0 #0001,0 12px 30px -12px #0004;font-size:14px}
 .paper .head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px;padding-bottom:12px;border-bottom:2px solid #b8913a}.paper .logo{width:96px;height:auto;flex:none;mix-blend-mode:multiply}.paper .hd{text-align:right;font-size:12px;color:#4a3f3b}
 .paper h2{font-size:24px;margin:18px 0 4px;font-weight:800}
@@ -87,7 +91,7 @@ pre{overflow:auto;max-height:260px;background:var(--card);padding:12px;border-ra
 </fieldset>
 
 <fieldset><legend>Positionen</legend>
-<div id="lines"></div>
+<div id="lines" style="clear:both"></div>
 <div class="acts"><button type="button" id="addl">+ Position</button></div>
 <p class="note">Art „km“: Tage × km pro Tag × € pro km · „Pauschal/Tag“: Tage × € pro Tag · „Betrag“: fester Betrag, z. B. Dieselzuschlag (+) oder Strafe (−) · MwSt. 19 %</p>
 </fieldset>
@@ -101,6 +105,7 @@ pre{overflow:auto;max-height:260px;background:var(--card);padding:12px;border-ra
 <div class="acts">
 <button type="button" class="main" id="dl">XML herunterladen</button>
 <button type="button" id="cp">XML kopieren</button>
+<button type="button" class="main" id="pr">Drucken / PDF</button>
 <button type="button" id="hd">Ansicht (HTML) herunterladen</button>
 <button type="button" id="nx">Nächste Rechnung</button>
 </div>
@@ -239,6 +244,7 @@ function prep(){storeCust();if(!check()){say('Bitte rot markierte Felder ausfül
 $('dl').onclick=()=>{const x=prep();if(x)saveFile('Rechnung_'+$('no').value.trim().replace(/[^\w-]+/g,'-')+'.xml',x,'application/xml')};
 $('cp').onclick=async()=>{const x=prep();if(!x)return;$('out').style.display='block';$('out').textContent=x;try{await navigator.clipboard.writeText(x);say('XML kopiert.','ok')}catch(e){say('Bitte XML unten markieren und kopieren.','err')}};
 $('hd').onclick=()=>{if(!prep())return;const h=`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${esc($('no').value)}</title><style>body{font:14px/1.5 Arial,sans-serif;max-width:800px;margin:30px auto;color:#1a1817}table{width:100%;border-collapse:collapse;margin-top:14px}th{text-align:left;border-bottom:2px solid #000;padding:6px 4px;font-size:12px}td{padding:6px 4px;border-bottom:1px solid #eee}.n{text-align:right;white-space:nowrap}.tot td{border:0}.g td{font-weight:bold;font-size:18px;border-top:2px solid #000}.meta{display:grid;grid-template-columns:auto auto;justify-content:end;gap:0 14px}.from,.foot{font-size:11px;color:#666}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;padding-bottom:12px;border-bottom:2px solid #b8913a}.logo{width:96px;mix-blend-mode:multiply}.hd{text-align:right;font-size:12px}</style></head><body>${paperHTML()}</body></html>`;saveFile('Rechnung_'+$('no').value.trim().replace(/[^\w-]+/g,'-')+'.html',h,'text/html')};
+$('pr').onclick=()=>{storeCust();draw();window.print()};
 $('nx').onclick=()=>{storeCust();S.nextNo++;save();$('no').value=invNo();$('dt').value=today();monthDefaults();$('hw').value='';$('out').style.display='none';say('Neue Rechnung '+$('no').value,'ok');draw()};
 $('cs').onchange=()=>{storeCust();S.cur=+$('cs').value;save();loadCust()};
 $('newc').onclick=()=>{storeCust();S.customers.push({person:'',name:'',street:'',zip:'',city:'',email:'',vat:'',ref:'',lines:[KM('',0,0,0.62)]});S.cur=S.customers.length-1;save();fillCustSel();loadCust();$('bn').focus()};
