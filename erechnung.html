@@ -66,6 +66,7 @@ pre{overflow:auto;max-height:260px;background:var(--card);padding:12px;border-ra
 <div><label for="ps">Leistung von</label><input id="ps" type="date"></div>
 <div><label for="pe">Leistung bis</label><input id="pe" type="date"></div>
 <div><label for="zd">Zahlungsziel (Tage)</label><input id="zd" type="number" min="0" value="14"></div>
+<div style="grid-column:1/-1"><label for="hw">Hinweis (optional, z. B. offene Rechnung)</label><textarea id="hw" rows="2"></textarea></div>
 </div></fieldset>
 
 <fieldset><legend>Kunde</legend>
@@ -77,7 +78,7 @@ pre{overflow:auto;max-height:260px;background:var(--card);padding:12px;border-ra
 <div><label for="bc">Ort *</label><input id="bc"></div>
 <div><label for="be">E-Mail *</label><input id="be" type="email"></div>
 <div><label for="bp">Ansprechpartner</label><input id="bp"></div><div><label for="bv">USt-IdNr.</label><input id="bv"></div>
-<div style="grid-column:1/-1"><label for="br">Leitweg-ID / Bestell- oder Kundennr. (falls vorhanden)</label><input id="br"></div>
+<div style="grid-column:1/-1"><label for="ba">Anrede (z. B. Sehr geehrter Herr Witzel,)</label><input id="ba"></div><div style="grid-column:1/-1"><label for="br">Leitweg-ID / Bestell- oder Kundennr. (falls vorhanden)</label><input id="br"></div>
 </div>
 <div class="acts"><button type="button" id="delc" class="x" style="width:auto">Kunde löschen</button></div>
 </fieldset>
@@ -123,14 +124,15 @@ let S;
 try{S=JSON.parse(localStorage.getItem('nsr2')||'null')}catch(e){}
 const KM=(d,n,k,p)=>({d,t:'km',n,k,p}),BT=(d,p)=>({d,t:'betrag',n:'',k:'',p});
 if(!S)S={nextNo:31,iban:'DE60 2519 3331 1202 3620 00',bank:'Volksbank eG Hildesheim-Lehrte-Pattensen',bic:'GENODEF1PAT',cur:0,customers:[
- {name:'Lachnet Kleintransporte',person:'Inh. Herr Olaf Witzel',street:'Hinter dem Turme 23a',zip:'38114',city:'Braunschweig',email:'olaf.witzel@lachnet-kleintransporte.de',vat:'',ref:'',lines:[
+ {name:'Lachnet Kleintransporte',person:'Inh. Herr Olaf Witzel',anrede:'Sehr geehrter Herr Witzel,',street:'Hinter dem Turme 23a',zip:'38114',city:'Braunschweig',email:'olaf.witzel@lachnet-kleintransporte.de',vat:'',ref:'',lines:[
   KM('455 P',18,108,0.60),KM('455 P / Mi',4,110,0.60),KM('921 P / Sa (mit GDP)',3,311,0.62),KM('101 P / Sa (ohne GDP)',3,124,0.60),
   {d:'130 P',t:'tag',n:22,k:'',p:30},KM('110 S / Sa (mit GDP)',3,61,0.62),KM('318 P',22,93,0.62),KM('617 P',18,99,0.62),KM('617 P / Mi',4,92,0.62),
   KM('843 P',22,315,0.60),KM('970 P',4,102,0.62),KM('870 Q',18,108,0.62),BT('Dieselpreiszuschlag',698.30),BT('Keine Leergutmitnahme',-10)]},
- {name:'WEG Osterstr. 7-9',extra:'c/o Sparkassen Immobiliengesellschaft HGP mbH',person:'Frau Demus-Hannke',street:'Kardinal-Bertram-Str. 1',zip:'31134',city:'Hildesheim',email:'',vat:'',ref:'',lines:[BT('Reinigungsleistung',392.47)]},
+ {name:'WEG Osterstr. 7-9',extra:'c/o Sparkassen Immobiliengesellschaft HGP mbH',person:'Frau Demus-Hannke',anrede:'Sehr geehrte Frau Demus-Hannke,',street:'Kardinal-Bertram-Str. 1',zip:'31134',city:'Hildesheim',email:'',vat:'',ref:'',lines:[BT('Reinigungsleistung',392.47)]},
  {name:'Alliance',person:'',street:'',zip:'',city:'',email:'',vat:'',ref:'',lines:[KM('',0,0,0.62)]}]};
-if(!S.customers.some(c=>/osterstr/i.test(c.name||'')))S.customers.splice(1,0,{name:'WEG Osterstr. 7-9',extra:'c/o Sparkassen Immobiliengesellschaft HGP mbH',person:'Frau Demus-Hannke',street:'Kardinal-Bertram-Str. 1',zip:'31134',city:'Hildesheim',email:'',vat:'',ref:'',lines:[BT('Reinigungsleistung',392.47)]});
+if(!S.customers.some(c=>/osterstr/i.test(c.name||'')))S.customers.splice(1,0,{name:'WEG Osterstr. 7-9',extra:'c/o Sparkassen Immobiliengesellschaft HGP mbH',person:'Frau Demus-Hannke',anrede:'Sehr geehrte Frau Demus-Hannke,',street:'Kardinal-Bertram-Str. 1',zip:'31134',city:'Hildesheim',email:'',vat:'',ref:'',lines:[BT('Reinigungsleistung',392.47)]});
 if(S.nextNo<31)S.nextNo=31;
+S.customers.forEach(c=>{if(!c.anrede){if(/lachnet/i.test(c.name||''))c.anrede='Sehr geehrter Herr Witzel,';else if(/osterstr/i.test(c.name||''))c.anrede='Sehr geehrte Frau Demus-Hannke,'}});
 S.customers.forEach(c=>{if(/lachnet/i.test(c.name||'')&&!c.email)c.email='olaf.witzel@lachnet-kleintransporte.de'});
 let lines=[];
 const save=()=>{try{localStorage.setItem('nsr2',JSON.stringify(S))}catch(e){}};
@@ -138,7 +140,7 @@ const invNo=()=>new Date().getFullYear()+'/'+S.nextNo;
 function monthDefaults(){const n=new Date(),y=n.getMonth()===0?n.getFullYear()-1:n.getFullYear(),m=n.getMonth()===0?12:n.getMonth();
  const first=`${y}-${String(m).padStart(2,'0')}-01`,last=new Date(y,m,0);$('ps').value=first;$('pe').value=`${y}-${String(m).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`}
 function fillCustSel(){$('cs').innerHTML=S.customers.map((c,i)=>`<option value="${i}">${esc(c.name||'(ohne Namen)')}</option>`).join('');$('cs').value=S.cur}
-const CF={b2:'extra',bp:'person',bn:'name',bs:'street',bz:'zip',bc:'city',be:'email',bv:'vat',br:'ref'};
+const CF={ba:'anrede',b2:'extra',bp:'person',bn:'name',bs:'street',bz:'zip',bc:'city',be:'email',bv:'vat',br:'ref'};
 function loadCust(){const c=S.customers[S.cur];if(!c)return;for(const k in CF)$(k).value=c[CF[k]]||'';lines=(c.lines||[]).map(l=>({...l}));if(!lines.length)lines=[KM('',0,0,0.62)];renderLines()}
 function storeCust(){const c=S.customers[S.cur];if(!c)return;for(const k in CF)c[CF[k]]=$(k).value.trim();c.lines=lines.map(l=>({...l}));S.iban=$('ib').value.trim();S.bank=$('bk').value.trim();S.bic=$('bi').value.trim();save();
  const o=$('cs').options[S.cur];if(o)o.textContent=c.name||'(ohne Namen)'}
@@ -163,11 +165,15 @@ function paperHTML(){const v=calc(),b=S.customers[S.cur]||{};
 <div>${esc($('bn').value)}<br>${$('b2').value?esc($('b2').value)+'<br>':''}${$('bp').value?esc($('bp').value)+'<br>':''}${esc($('bs').value)}<br>${esc($('bz').value)} ${esc($('bc').value)}</div>
 <div class="meta"><span>Rechnungsnr.</span><b>${esc($('no').value)}</b><span>Datum</span><span>${dDE($('dt').value)}</span><span>Leistungszeitraum</span><span>${dDE($('ps').value)} – ${dDE($('pe').value)}</span>${$('br').value?`<span>Referenz</span><span>${esc($('br').value)}</span>`:''}${$('bv').value?`<span>USt-IdNr. Kunde</span><span>${esc($('bv').value)}</span>`:''}</div>
 <h2>Rechnung</h2>
+<p>${esc($('ba').value||'Sehr geehrte Damen und Herren,')}</p>
+<p>vielen Dank, dass Sie sich für die Dienstleistungen unseres Unternehmens entschieden haben. Die Kosten für die gemäß Ihrem Auftrag erbrachten Dienstleistungen erlauben wir uns wie folgt in Rechnung zu stellen:</p>
 <table><thead><tr><th>Pos.</th><th>Beschreibung</th><th class="n">Tage</th><th class="n">km</th><th class="n">Preis</th><th class="n">Summe</th></tr></thead><tbody>
 ${v.ls.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.d)}</td><td class="n">${l.t==='betrag'?'':fq(l.n)}</td><td class="n">${l.t==='km'?fq(l.k):l.t==='tag'?'Pauschal':''}</td><td class="n">${l.t==='betrag'?'':eur(l.price)+(l.t==='km'?'/km':'/Tag')}</td><td class="n">${eur(l.amt)}</td></tr>`).join('')}
 </tbody></table>
 <table class="tot"><tr><td>Nettobetrag</td><td class="n">${eur(v.net)}</td></tr><tr><td>zzgl. 19 % USt.</td><td class="n">${eur(v.tax)}</td></tr><tr class="g"><td>Gesamtbetrag</td><td class="n">${eur(v.gross)}</td></tr></table>
-<p>Zahlbar ohne Abzug bis ${dDE(due())} auf IBAN ${esc($('ib').value)}${$('bk').value?' ('+esc($('bk').value)+(($('bi').value)?', BIC '+esc($('bi').value):'')+')':''}, Verwendungszweck ${esc($('no').value)}.</p>
+<p>Bitte überweisen Sie den aufgeführten Betrag nach Prüfung bis zum ${dDE(due())} unter Angabe des Zeichens „${esc($('no').value)}“ auf das unten aufgeführte Konto:<br>IBAN ${esc($('ib').value)}${$('bk').value?' · '+esc($('bk').value):''}${$('bi').value?' · BIC '+esc($('bi').value):''}</p>
+${$('hw').value.trim()?`<p><b>Hinweis:</b> ${esc($('hw').value.trim()).replace(/\n/g,'<br>')}</p>`:''}
+<p>Mit freundlichen Grüßen<br>Ihr N&amp;S Transport Team</p>
 <div class="foot">${esc(SELLER.name)} · Inh. ${esc(SELLER.contact)} · ${esc(SELLER.street)}, ${SELLER.zip} ${esc(SELLER.city)} · Tel. ${esc(SELLER.tel)} · ${esc(SELLER.email)} · St.-Nr. ${SELLER.taxno} · USt-IdNr. ${SELLER.vat}</div>`}
 function draw(){$('paper').innerHTML=paperHTML();const v=calc();document.querySelectorAll('[data-sum]').forEach(e=>{const l=lines[+e.dataset.sum],n=+l.n||0,k=+l.k||0,p=+l.p||0;e.textContent=eur(l.t==='km'?r2(n*k*p):l.t==='tag'?r2(n*p):r2(p))})}
 function check(){const need=['no','dt','ps','pe','bn','bs','bz','bc','be','ib'];let ok=true;
@@ -190,7 +196,7 @@ function xml(){const v=calc(),no=$('no').value.trim(),ref=$('br').value.trim()||
 <ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</ram:ID></ram:BusinessProcessSpecifiedDocumentContextParameter>
 <ram:GuidelineSpecifiedDocumentContextParameter><ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID></ram:GuidelineSpecifiedDocumentContextParameter>
 </rsm:ExchangedDocumentContext>
-<rsm:ExchangedDocument><ram:ID>${esc(no)}</ram:ID><ram:TypeCode>380</ram:TypeCode><ram:IssueDateTime>${D($('dt').value)}</ram:IssueDateTime></rsm:ExchangedDocument>
+<rsm:ExchangedDocument><ram:ID>${esc(no)}</ram:ID><ram:TypeCode>380</ram:TypeCode><ram:IssueDateTime>${D($('dt').value)}</ram:IssueDateTime>${$('hw').value.trim()?`<ram:IncludedNote><ram:Content>${esc($('hw').value.trim())}</ram:Content></ram:IncludedNote>`:''}</rsm:ExchangedDocument>
 <rsm:SupplyChainTradeTransaction>${L}
 <ram:ApplicableHeaderTradeAgreement>
 <ram:BuyerReference>${esc(ref)}</ram:BuyerReference>
@@ -229,7 +235,7 @@ function prep(){storeCust();if(!check()){say('Bitte rot markierte Felder ausfül
 $('dl').onclick=()=>{const x=prep();if(x)saveFile('Rechnung_'+$('no').value.trim().replace(/[^\w-]+/g,'-')+'.xml',x,'application/xml')};
 $('cp').onclick=async()=>{const x=prep();if(!x)return;$('out').style.display='block';$('out').textContent=x;try{await navigator.clipboard.writeText(x);say('XML kopiert.','ok')}catch(e){say('Bitte XML unten markieren und kopieren.','err')}};
 $('hd').onclick=()=>{if(!prep())return;const h=`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>${esc($('no').value)}</title><style>body{font:14px/1.5 Arial,sans-serif;max-width:800px;margin:30px auto;color:#1a1817}table{width:100%;border-collapse:collapse;margin-top:14px}th{text-align:left;border-bottom:2px solid #000;padding:6px 4px;font-size:12px}td{padding:6px 4px;border-bottom:1px solid #eee}.n{text-align:right;white-space:nowrap}.tot td{border:0}.g td{font-weight:bold;font-size:18px;border-top:2px solid #000}.meta{display:grid;grid-template-columns:auto auto;justify-content:end;gap:0 14px}.from,.foot{font-size:11px;color:#666}</style></head><body>${paperHTML()}</body></html>`;saveFile('Rechnung_'+$('no').value.trim().replace(/[^\w-]+/g,'-')+'.html',h,'text/html')};
-$('nx').onclick=()=>{storeCust();S.nextNo++;save();$('no').value=invNo();$('dt').value=today();monthDefaults();$('out').style.display='none';say('Neue Rechnung '+$('no').value,'ok');draw()};
+$('nx').onclick=()=>{storeCust();S.nextNo++;save();$('no').value=invNo();$('dt').value=today();monthDefaults();$('hw').value='';$('out').style.display='none';say('Neue Rechnung '+$('no').value,'ok');draw()};
 $('cs').onchange=()=>{storeCust();S.cur=+$('cs').value;save();loadCust()};
 $('newc').onclick=()=>{storeCust();S.customers.push({person:'',name:'',street:'',zip:'',city:'',email:'',vat:'',ref:'',lines:[KM('',0,0,0.62)]});S.cur=S.customers.length-1;save();fillCustSel();loadCust();$('bn').focus()};
 $('delc').onclick=()=>{if(S.customers.length<2){say('Mindestens ein Kunde bleibt.','err');return}if($('delc').dataset.c!=='1'){$('delc').dataset.c='1';$('delc').textContent='Wirklich löschen?';setTimeout(()=>{$('delc').dataset.c='';$('delc').textContent='Kunde löschen'},3000);return}
